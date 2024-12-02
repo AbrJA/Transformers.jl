@@ -9,17 +9,6 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-struct DistilBertPooler{D}
-    dense::D
-end
-@functor DistilBertPooler
-@fluxlayershow DistilBertPooler
-
-function (m::DistilBertPooler)(x)
-    first_token = selectdim(x, 2, 1)
-    return m.dense(first_token)
-end
-
 struct DistilBertQA{D}
     dense::D
 end
@@ -37,19 +26,12 @@ end
 @hgfdef DistilBert (
     Model => begin
         outputs = model.encoder(model.embed(nt))
-        # if isnothing(model.pooler)
-        #     return outputs
-        # else
-        #     return model.pooler(outputs)
-        # end
     end,
-    # ForPreTraining,
     ForCausalLM,
     ForMaskedLM,
-    # ForNextSentencePrediction,
-    # ForSequenceClassification,
-    # ForTokenClassification,
-    # ForQuestionAnswering,
+    ForSequenceClassification,
+    ForTokenClassification,
+    ForQuestionAnswering,
     # ForMultipleChoice,
 )
 
@@ -66,18 +48,13 @@ function load_model(_type::Type, ::Type{HGFDistilBertModel}, cfg, state_dict, pr
     encoder = load_model(_type, TransformerBlock, cfg, state_dict, joinname(prefix, "transformer"))
     dims = cfg[:hidden_size]
     factor = Float32(cfg[:initializer_range])
-    # weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "pooler.dense.weight"))
-    # bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "pooler.dense.bias"))
-    # pooler = DistilBertPooler(Layers.Dense(NNlib.tanh_fast, weight, bias))
-    # return HGFDistilBertModel(embed, encoder, Layers.Branch{(:pooled,),(:hidden_state,)}(pooler))
     return HGFDistilBertModel(embed, encoder)
 end
 
 function load_model(
     _type::Type{<:Union{
-        HGFDistilBertForCausalLM,
-        HGFDistilBertForMaskedLM,
-        # HGFDistilBertForTokenClassification,HGFDistilBertForQuestionAnswering,
+        HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM, 
+        HGFDistilBertForTokenClassification, HGFDistilBertForQuestionAnswering,
     }},
     ::Type{HGFDistilBertModel}, cfg, state_dict, prefix)
     embed = load_model(_type, CompositeEmbedding, cfg, state_dict, joinname(prefix, "embeddings"))
@@ -85,26 +62,15 @@ function load_model(
     return HGFDistilBertModel(embed, encoder)
 end
 
-# function load_model(_type::Type{HGFDistilBertForPreTraining}, cfg, state_dict, prefix)
-#     distilbert = load_model(_type, HGFDistilBertForCausalLM, cfg, state_dict, prefix)
-#     model, lmhead = distilbert.model, distilbert.cls
-#     seqhead = load_model(HGFDistilBertForNextSentencePrediction, Layers.Dense, cfg, state_dict, prefix)
-#     cls = Layers.Chain(lmhead, seqhead)
-#     return HGFDistilBertForPreTraining(model, cls)
-# end
-
-function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM,HGFDistilBertForMaskedLM}}, cfg, state_dict, prefix)
+function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM}}, cfg, state_dict, prefix)
     model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
     dims, vocab_size, pad_id = cfg[:hidden_size], cfg[:vocab_size], cfg[:pad_token_id]
     factor = Float32(cfg[:initializer_range])
     act = ACT2FN[Symbol(cfg[:hidden_act])]
     # HGFDistilBertPredictionHeadTransform
-    head_weight = getweight(weight_init(dims, dims, factor), Array,
-        state_dict, joinname(prefix, "vocab_transform.weight"))
-    head_bias = getweight(zero_init(dims), Array,
-        state_dict, joinname(prefix, "vocab_transform.bias"))
-    head_ln = load_model(HGFDistilBertModel, Layers.LayerNorm, cfg,
-        state_dict, joinname(prefix, "vocab_layer_norm"))
+    head_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "vocab_transform.weight"))
+    head_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "vocab_transform.bias"))
+    head_ln = load_model(HGFDistilBertModel, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "vocab_layer_norm"))
     # HGFDistilBertLMPredictionHead
     if cfg[:tie_word_embeddings]
         embedding = model.embed[1].token.embeddings
@@ -120,21 +86,15 @@ function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM,HGFDistilBertFo
     return _type(model, Layers.Branch{(:logit,),(:hidden_state,)}(lmhead))
 end
 
-# function load_model(_type::Type{HGFDistilBertForNextSentencePrediction}, cfg, state_dict, prefix)
-#     model = load_model(HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
-#     cls = load_model(HGFDistilBertForNextSentencePrediction, Layers.Dense, cfg, state_dict, prefix)
-#     return HGFDistilBertForNextSentencePrediction(model, cls)
-# end
-
-# function load_model(_type::Type{HGFDistilBertForSequenceClassification}, cfg, state_dict, prefix)
-#     model = load_model(HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
-#     dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
-#     factor = Float32(cfg[:initializer_range])
-#     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
-#     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
-#     cls = Layers.Branch{(:logit,),(:pooled,)}(Layers.Dense(weight, bias))
-#     return HGFDistilBertForSequenceClassification(model, cls)
-# end
+function load_model(_type::Type{HGFDistilBertForSequenceClassification}, cfg, state_dict, prefix)
+    model = load_model(HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
+    dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
+    factor = Float32(cfg[:initializer_range])
+    weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
+    bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
+    cls = Layers.Branch{(:logit,),(:pooled,)}(Layers.Dense(weight, bias))
+    return HGFDistilBertForSequenceClassification(model, cls)
+end
 
 # function load_model(
 #     _type::Type{HGFDistilBertForMultipleChoice}, cfg,
@@ -144,36 +104,25 @@ end
 
 # end
 
-# function load_model(_type::Type{HGFDistilBertForTokenClassification}, cfg, state_dict, prefix)
-#     model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
-#     dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
-#     factor = Float32(cfg[:initializer_range])
-#     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
-#     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
-#     cls = Layers.Branch{(:logit,),(:hidden_state,)}(Layers.Dense(weight, bias))
-#     return HGFDistilBertForTokenClassification(model, cls)
-# end
+function load_model(_type::Type{HGFDistilBertForTokenClassification}, cfg, state_dict, prefix)
+    model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
+    dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
+    factor = Float32(cfg[:initializer_range])
+    weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
+    bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
+    cls = Layers.Branch{(:logit,),(:hidden_state,)}(Layers.Dense(weight, bias))
+    return HGFDistilBertForTokenClassification(model, cls)
+end
 
-# function load_model(_type::Type{HGFDistilBertForQuestionAnswering}, cfg, state_dict, prefix)
-#     model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
-#     dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
-#     factor = Float32(cfg[:initializer_range])
-#     weight = getweight(weight_init(dims, nlabel, factor), Array,
-#         state_dict, joinname(prefix, "qa_outputs.weight"))
-#     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "qa_outputs.bias"))
-#     cls = DistilBertQA(Layers.Dense(weight, bias))
-#     return HGFDistilBertForQuestionAnswering(model, cls)
-# end
-
-# function load_model(_type::Type{HGFDistilBertForNextSentencePrediction}, ::Type{Layers.Dense}, cfg, state_dict, prefix)
-#     dims = cfg[:hidden_size]
-#     factor = Float32(cfg[:initializer_range])
-#     seq_weight = getweight(weight_init(dims, 2, factor), Array,
-#         state_dict, joinname(prefix, "cls.seq_relationship.weight"))
-#     seq_bias = getweight(zero_init(2), Array, state_dict, joinname(prefix, "cls.seq_relationship.bias"))
-#     seqhead = Layers.Dense(seq_weight, seq_bias)
-#     return Layers.Branch{(:seq_logit,),(:pooled,)}(Layers.RenameArgs{(:hidden_state,),(:pooled,)}(seqhead))
-# end
+function load_model(_type::Type{HGFDistilBertForQuestionAnswering}, cfg, state_dict, prefix)
+    model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
+    dims, nlabel = cfg[:hidden_size], cfg[:num_labels]
+    factor = Float32(cfg[:initializer_range])
+    weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "qa_outputs.weight"))
+    bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "qa_outputs.bias"))
+    cls = DistilBertQA(Layers.Dense(weight, bias))
+    return HGFDistilBertForQuestionAnswering(model, cls)
+end
 
 function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:Layers.LayerNorm}, cfg, state_dict, prefix)
     dims = cfg[:hidden_size]
@@ -282,24 +231,11 @@ end
 function get_state_dict(m::HGFDistilBertModel, state_dict, prefix)
     get_state_dict(HGFDistilBertModel, m.embed[1], state_dict, joinname(prefix, "embeddings"))
     get_state_dict(HGFDistilBertModel, m.embed[2], state_dict, joinname(prefix, "embeddings.LayerNorm"))
-    get_state_dict(HGFDistilBertModel, m.encoder, state_dict, joinname(prefix, "transformer"))
-    if !isnothing(m.pooler)
-        get_state_dict(HGFDistilBertModel, m.pooler.layer.dense, state_dict, joinname(prefix, "pooler.dense"))
-    end
+    get_state_dict(HGFDistilBertModel, m.encoder, state_dict, joinname(prefix, "transformer"))    
     return state_dict
 end
 
-# function get_state_dict(m::HGFDistilBertForPreTraining, state_dict, prefix)
-#     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
-#     get_state_dict(HGFDistilBertModel, m.cls[1].layer[1],
-#         state_dict, joinname(prefix, "vocab_transform"))
-#     get_state_dict(HGFDistilBertModel, m.cls[1].layer[2], state_dict, joinname(prefix, "vocab_layer_norm"))
-#     get_state_dict(HGFDistilBertModel, m.cls[1].layer[3], state_dict, joinname(prefix, "vocab_projector"))
-#     get_state_dict(HGFDistilBertModel, m.cls[2], state_dict, joinname(prefix, "cls.seq_relationship"))
-#     return state_dict
-# end
-
-function get_state_dict(m::Union{HGFDistilBertForCausalLM,HGFDistilBertForMaskedLM}, state_dict, prefix)
+function get_state_dict(m::Union{HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM}, state_dict, prefix)
     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
     get_state_dict(HGFDistilBertModel, m.cls.layer[1], state_dict, joinname(prefix, "vocab_transform"))
     get_state_dict(HGFDistilBertModel, m.cls.layer[2], state_dict, joinname(prefix, "vocab_layer_norm"))
@@ -307,23 +243,17 @@ function get_state_dict(m::Union{HGFDistilBertForCausalLM,HGFDistilBertForMasked
     return state_dict
 end
 
-# function get_state_dict(m::HGFDistilBertForNextSentencePrediction, state_dict, prefix)
-#     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
-#     get_state_dict(HGFDistilBertModel, m.cls.layer.layer, state_dict, joinname(prefix, "cls.seq_relationship"))
-#     return state_dict
-# end
+function get_state_dict(m::Union{HGFDistilBertForSequenceClassification, HGFDistilBertForTokenClassification}, state_dict, prefix)
+    get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
+    get_state_dict(HGFDistilBertModel, m.cls, state_dict, joinname(prefix, "classifier"))
+    return state_dict
+end
 
-# function get_state_dict(m::Union{HGFDistilBertForSequenceClassification,HGFDistilBertForTokenClassification}, state_dict, prefix)
-#     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
-#     get_state_dict(HGFDistilBertModel, m.cls, state_dict, joinname(prefix, "classifier"))
-#     return state_dict
-# end
-
-# function get_state_dict(m::HGFDistilBertForQuestionAnswering, state_dict, prefix)
-#     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
-#     get_state_dict(HGFDistilBertModel, m.cls.dense, state_dict, joinname(prefix, "qa_outputs"))
-#     return state_dict
-# end
+function get_state_dict(m::HGFDistilBertForQuestionAnswering, state_dict, prefix)
+    get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
+    get_state_dict(HGFDistilBertModel, m.cls.dense, state_dict, joinname(prefix, "qa_outputs"))
+    return state_dict
+end
 
 function get_state_dict(p::Type{<:HGFDistilBertPreTrainedModel}, m::Layers.EmbedDecoder, state_dict, prefix)
     get_state_dict(p, m.embed, state_dict, joinname(prefix, "decoder"))
