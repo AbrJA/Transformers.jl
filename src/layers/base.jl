@@ -21,7 +21,7 @@ struct Fork{T<:Tuple}
 end
 Fork(layers...) = Fork(layers)
 
-@functor Fork
+Flux.@layer Fork
 
 _fork_n(layers) = Val(length(layers))
 ChainRulesCore.@non_differentiable _fork_n(layers)
@@ -56,7 +56,7 @@ function Base.show(io::IO, layer::Fork)
     end
     print(io, ')')
 end
-@fluxlayershow Fork false
+
 
 """
     NSplit(n::Integer, layer)
@@ -71,7 +71,7 @@ struct NSplit{N, L}
 end
 NSplit(n::Integer, layer) = NSplit(static(n), layer)
 
-@functor NSplit (layer,)
+Flux.@layer NSplit trainable=(layer,)
 
 function _compute_nsplit_dims(x, hdim, i)
     b = hdim * i
@@ -137,7 +137,7 @@ function Base.show(io::IO, layer::NSplit)
     show(io, layer.layer)
     print(io, ')')
 end
-@fluxlayershow NSplit false
+
 
 ######################################
 
@@ -282,7 +282,7 @@ struct Dense{F, T, B}
     W::T
     b::B
 end
-@functor Dense (W, b)
+Flux.@layer Dense trainable=(W, b)
 
 Dense(w::AbstractArray) = Dense(nothing, w, nothing)
 Dense(act, w::AbstractArray) = Dense(act, w, nothing)
@@ -311,31 +311,31 @@ function Base.show(io::IO, d::Dense)
     print(io, !isnothing(d.b))
     print(io, ')')
 end
-@fluxlayershow Dense false
+
 
 struct LayerNorm{A, B, F}
     α::A
     β::B
     ϵ::F
 end
-@functor LayerNorm (α, β)
+Flux.@layer LayerNorm trainable=(α, β)
 
 (ln::LayerNorm)(x) = layer_norm(ln.ϵ, ln.α, ln.β, x)
 
 LayerNorm(hidden_size::Int; ϵ = 1e-7) = LayerNorm(ones(Float32, hidden_size), zeros(Float32, hidden_size), Float32(ϵ))
 
 Base.show(io::IO, ln::LayerNorm) = print(io, "LayerNorm(", length(ln.α), ", ϵ = ", ln.ϵ, ')')
-@fluxlayershow LayerNorm false
+
 
 struct RMSLayerNorm{A, F}
     α::A
     ϵ::F
 end
-@functor RMSLayerNorm (α,)
+Flux.@layer RMSLayerNorm trainable=(α,)
 
 (ln::RMSLayerNorm)(x) = rms_layer_norm(ln.ϵ, ln.α, x)
 
 RMSLayerNorm(hidden_size::Int; ϵ = 1e-7) = RMSLayerNorm(ones(Float32, hidden_size), Float32(ϵ))
 
 Base.show(io::IO, ln::RMSLayerNorm) = print(io, "RMSLayerNorm(", length(ln.α), ", ϵ = ", ln.ϵ, ')')
-@fluxlayershow RMSLayerNorm false
+

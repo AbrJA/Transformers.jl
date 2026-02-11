@@ -1,5 +1,5 @@
-using ..Layers
-using ..Layers: CompositeEmbedding, SelfAttention, MultiheadQKVAttenOp
+using ..TransformerLayers
+using ..TransformerLayers: CompositeEmbedding, SelfAttention, MultiheadQKVAttenOp
 using ChainRulesCore
 using Functors
 using FillArrays
@@ -37,7 +37,7 @@ function load_model(::Type{HGFRobertaModel}, cfg, state_dict, prefix)
     position = model.embed[1].position
     segment = model.embed[1].segment
     ln = model.embed[2]
-    embed = Layers.Chain(CompositeEmbedding(
+    embed = TransformerLayers.Chain(CompositeEmbedding(
         token = token,
         position = (position.apply, position.embed, roberta_pe_indices $ pad_id),
         segment = segment
@@ -57,7 +57,7 @@ function load_model(
     position = embed[1].position
     segment = embed[1].segment
     ln = embed[2]
-    embed = Layers.Chain(CompositeEmbedding(
+    embed = TransformerLayers.Chain(CompositeEmbedding(
         token = token,
         position = (position.apply, position.embed, roberta_pe_indices $ pad_id),
         segment = segment
@@ -72,20 +72,20 @@ function load_model(_type::Type{<:Union{HGFRobertaForCausalLM, HGFRobertaForMask
     factor = Float32(cfg[:initializer_range])
     head_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "lm_head.dense.weight"))
     head_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "lm_head.dense.bias"))
-    head_ln = load_model(HGFBertModel, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "lm_head.layer_norm"))
+    head_ln = load_model(HGFBertModel, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "lm_head.layer_norm"))
     if cfg[:tie_word_embeddings]
         embedding = model.embed[1].token.embeddings
     else
-        embedding = getweight(Layers.Embed, state_dict, joinname(prefix, "lm_head.decoder.weight")) do
+        embedding = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "lm_head.decoder.weight")) do
             weight = weight_init(vocab_size, dims, factor)()
             weight[:, pad_id+1] .= 0
             return weight
         end
     end
     bias = getweight(zero_init(vocab_size), Array, state_dict, joinname(prefix, "lm_head.bias"))
-    lmhead = Layers.Chain(Layers.Dense(gelu, head_weight, head_bias), head_ln,
-                          Layers.EmbedDecoder(Layers.Embed(embedding), bias))
-    return _type(model, Layers.Branch{(:logit,), (:hidden_state,)}(lmhead))
+    lmhead = TransformerLayers.Chain(TransformerLayers.Dense(gelu, head_weight, head_bias), head_ln,
+                          TransformerLayers.EmbedDecoder(TransformerLayers.Embed(embedding), bias))
+    return _type(model, TransformerLayers.Branch{(:logit,), (:hidden_state,)}(lmhead))
 end
 
 function load_model(_type::Type{HGFRobertaForSequenceClassification}, cfg, state_dict, prefix)

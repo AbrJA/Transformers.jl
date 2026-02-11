@@ -2,9 +2,9 @@ module IWSLT
 using Fetch
 using DataDeps
 
-using ..Datasets: Dataset
-import ..Datasets: testfile, devfile, trainfile
-import ..Datasets: token_freq, get_vocab
+import ..Dataset
+import ..testfile, ..devfile, ..trainfile
+import ..token_freq, ..get_vocab
 
 export IWSLT2016
 

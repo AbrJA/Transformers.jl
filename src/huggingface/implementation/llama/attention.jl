@@ -1,4 +1,4 @@
-import ..Layers
+import ..TransformerLayers
 using NeuralAttentionlib
 using NeuralAttentionlib: $, AbstractAttenOp,
     with_rotary_position_embedding, scaled_dot_product_score,

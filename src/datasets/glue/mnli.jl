@@ -1,4 +1,4 @@
-import ..Datasets: dataset, datafile, reader, Mode, Test
+import ..dataset, ..datafile, ..reader, ..Mode, ..Test
 
 mnli_init() = register(DataDep(
     "GLUE-MNLI",
@@ -7,13 +7,13 @@ mnli_init() = register(DataDep(
     """,
     "https://dl.fbaipublicfiles.com/glue/data/MNLI.zip",
     "e7c1d896d26ed6caf700110645df426cc2d8ebf02a5ab743d5a5c68ac1c83633";
-    post_fetch_method = fn -> begin
-      Base.Filesystem.rename(fn, "MNLI.zip")
-      DataDeps.unpack("MNLI.zip")
-      innerdir = "MNLI"
-      innerfiles = readdir(innerdir)
-      mv.(joinpath.(innerdir, innerfiles), innerfiles)
-      rm(innerdir)
+    post_fetch_method=fn -> begin
+        Base.Filesystem.rename(fn, "MNLI.zip")
+        DataDeps.unpack("MNLI.zip")
+        innerdir = "MNLI"
+        innerfiles = readdir(innerdir)
+        mv.(joinpath.(innerdir, innerfiles), innerfiles)
+        rm(innerdir)
     end
 ))
 
@@ -21,11 +21,11 @@ struct MNLI <: Dataset
     matched::Bool
 end
 
-function dataset(::Type{M}, d::MNLI) where M <: Mode
+function dataset(::Type{M}, d::MNLI) where M<:Mode
     ds = reader(datafile(M, d))
     header = split(take!(ds), '\t')
     field_num = length(header)
-    needed_field = (9,10,12)
+    needed_field = (9, 10, 12)
     rds = get_channels(String, length(needed_field))
 
     task = @async begin

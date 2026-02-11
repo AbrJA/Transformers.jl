@@ -128,7 +128,7 @@ struct T5RPEMultiheadQKVAttenOp{F, E} <: AbstractAttenOp
     position_embedding::E
     p::F
 end
-@functor T5RPEMultiheadQKVAttenOp (position_embedding,)
+Flux.@layer T5RPEMultiheadQKVAttenOp trainable=(position_embedding,)
 
 T5RPEMultiheadQKVAttenOp(head, n_bucket, max_distance, position_embedding) =
     T5RPEMultiheadQKVAttenOp(head, n_bucket, max_distance, position_embedding, nothing)
@@ -161,7 +161,7 @@ struct T5RPECausalMultiheadQKVAttenOp{F, E} <: AbstractAttenOp
     position_embedding::E
     p::F
 end
-@functor T5RPECausalMultiheadQKVAttenOp (position_embedding,)
+Flux.@layer T5RPECausalMultiheadQKVAttenOp trainable=(position_embedding,)
 
 T5RPECausalMultiheadQKVAttenOp(head, n_bucket, max_distance, position_embedding) =
     T5RPECausalMultiheadQKVAttenOp(head, n_bucket, max_distance, position_embedding, nothing)

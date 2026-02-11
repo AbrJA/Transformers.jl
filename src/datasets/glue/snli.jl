@@ -1,4 +1,4 @@
-import ..Datasets: dataset, datafile, reader, Mode, Test
+import ..dataset, ..datafile, ..reader, ..Mode, ..Test
 
 snli_init() = register(DataDep(
     "GLUE-SNLI",
@@ -7,23 +7,23 @@ snli_init() = register(DataDep(
     """,
     "https://firebasestorage.googleapis.com/v0/b/mtl-sentence-representations.appspot.com/o/data%2FSNLI.zip?alt=media&token=4afcfbb2-ff0c-4b2d-a09a-dbf07926f4df",
     "48c972c3d3590cb79227cd91fda7319ac14068ce804e703364524e171b53dc16";
-    post_fetch_method = fn -> begin
-      Base.Filesystem.rename(fn, "SNLI.zip")
-      DataDeps.unpack("SNLI.zip")
-      innerdir = "SNLI"
-      innerfiles = readdir(innerdir)
-      mv.(joinpath.(innerdir, innerfiles), innerfiles)
-      rm(innerdir)
+    post_fetch_method=fn -> begin
+        Base.Filesystem.rename(fn, "SNLI.zip")
+        DataDeps.unpack("SNLI.zip")
+        innerdir = "SNLI"
+        innerfiles = readdir(innerdir)
+        mv.(joinpath.(innerdir, innerfiles), innerfiles)
+        rm(innerdir)
     end
 ))
 
 struct SNLI <: Dataset end
 
-function dataset(::Type{M}, d::SNLI) where M <: Mode
+function dataset(::Type{M}, d::SNLI) where M<:Mode
     ds = reader(datafile(M, d))
     header = split(take!(ds), '\t')
     field_num = length(header)
-    needed_field = (8,9,11)
+    needed_field = (8, 9, 11)
     rds = get_channels(String, length(needed_field))
 
     task = @async begin

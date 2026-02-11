@@ -1,8 +1,10 @@
-module HuggingFace
+module HuggingFaceModels
 
-using ..Transformers
+using ..TransformerLayers
+using ..TransformerTokenizers
 
 using HuggingFaceApi
+using Flux
 
 export @hgf_str,
     load_config,
@@ -11,13 +13,13 @@ export @hgf_str,
     load_state_dict,
     load_hgf_pretrained
 
-include("./utils.jl")
-include("./download.jl")
-include("./weight.jl")
-include("./configs/config.jl")
-include("./models/models.jl")
-include("./tokenizer/tokenizer.jl")
-include("./implementation/implement.jl")
+include("huggingface/utils.jl")
+include("huggingface/download.jl")
+include("huggingface/weight.jl")
+include("huggingface/configs/config.jl")
+include("huggingface/models/models.jl")
+include("huggingface/tokenizer/tokenizer.jl")
+include("huggingface/implementation/implement.jl")
 
 """
     `hgf"<model-name>:<item>"`
@@ -27,7 +29,7 @@ Get `item` from `model-name`. This will ensure the required data are downloaded.
  model/task are supported. If `item` is omitted, return a `Tuple` of `<model-name>:tokenizer` and `<model-name>:model`.
 """
 macro hgf_str(name)
-  :(load_hgf_pretrained($(esc(name))))
+    :(load_hgf_pretrained($(esc(name))))
 end
 
 """
@@ -49,7 +51,7 @@ function load_hgf_pretrained(name; kw...)
     item == "config" && return cfg
 
     (item == "tokenizer" || all) &&
-        (tkr = load_tokenizer(model_name; config = cfg, kw...))
+        (tkr = load_tokenizer(model_name; config=cfg, kw...))
     item == "tokenizer" && return tkr
 
     model = load_model(cfg.model_type, model_name, item; config=cfg, kw...)

@@ -3,8 +3,8 @@ using Fetch
 using DataDeps
 using BytePairEncoding
 
-using ..Datasets: Dataset
-import ..Datasets: testfile, trainfile, get_vocab
+import ..Dataset
+import ..testfile, ..trainfile, ..get_vocab
 
 export GoogleWMT
 

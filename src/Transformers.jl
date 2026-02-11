@@ -2,30 +2,67 @@ module Transformers
 
 using Flux
 
-using NeuralAttentionlib
+# Re-export core modules
+include("TransformerLayers.jl")
+using .TransformerLayers
+export TransformerLayers
 
-export Transformer
+# Re-export tokenizers
+include("TransformerTokenizers.jl")
+using .TransformerTokenizers
+export TransformerTokenizers
 
-export todevice, enable_gpu
-export Layers, TextEncoders, HuggingFace,
-    Masks
+# Re-export datasets
+include("TransformerDatasets.jl")
+using .TransformerDatasets
+export TransformerDatasets
 
-const Container{T} = Union{NTuple{N, T}, Vector{T}} where N
+# Re-export HuggingFace models
+include("HuggingFaceModels.jl")
+using .HuggingFaceModels
+export HuggingFaceModels
 
-include("./device.jl")
-include("./loss.jl")
+# Backward compatibility aliases and exports
+const Layers = TransformerLayers
+const TextEncoders = TransformerTokenizers.TextEncoders
+const HuggingFace = HuggingFaceModels
+const Datasets = TransformerDatasets
 
-include("./layers/Layers.jl")
-include("./tokenizer/tokenizer.jl")
-include("./textencoders/TextEncoders.jl")
+export Layers, TextEncoders, HuggingFace, Datasets
 
-include("./datasets/Datasets.jl")
-include("./huggingface/HuggingFace.jl")
+# Re-export commonly used symbols from submodules (to match old API)
+# Layers
+for n in names(Layers; all=false)
+    if Base.isexported(Layers, n)
+        @eval export $n
+    end
+end
 
-using .Layers
-using .TextEncoders
-using .Datasets
+# TextEncoders?
+# Old Transformers exported TextEncoders module, but not its symbols directly?
+# Transformers.jl (old) had `using .TextEncoders`.
+# If `using .TextEncoders`, do symbols get exported? No. Only if `export` explicitly lists them.
+# Checked Transformers.jl (old): `export Layers, TextEncoders, HuggingFace, Masks`
+# It did NOT export `encode`, `decode` etc. Users used `TextEncoders.encode`.
+# So exporting the module `TextEncoders` is enough.
+# Which is done via `const TextEncoders = ...` and `export TextEncoders`.
 
-using .HuggingFace
+# What about `enable_gpu`, `todevice`?
+# They are in `TransformerLayers`.
+# Verify if they are exported by `TransformerLayers`. Yes, I added them.
+# So the loop above re-exports them.
+
+# Masks?
+# NeuralAttentionlib exports Masks.
+# Old Tranformers exported Masks.
+# `TransformerLayers` uses NeuralAttentionlib but doesn't explicitly export Masks?
+# Let's check `TransformerLayers.jl` (created in step 405).
+# It exports `Seq2Seq` etc. It does NOT export `Masks`.
+# So usage `Transformers.Masks` might fail.
+# I should export `Masks` from `TransformerLayers` or `Transformers.jl`.
+# I'll add `using NeuralAttentionlib: Masks` and `export Masks` to `Transformers.jl`.
+
+using NeuralAttentionlib: Masks
+export Masks
 
 end # module

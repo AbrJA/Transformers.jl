@@ -31,14 +31,14 @@ julia> embed([1,3,5])
 
 ```
 """
-struct Embed{F, E <: AbstractArray} <: AbstractEmbedding
+struct Embed{F,E<:AbstractArray} <: AbstractEmbedding
     scale::F
     embeddings::E
 end
-@functor Embed (embeddings,)
+Flux.@layer Embed trainable = (embeddings,)
 
-Embed(embeddings::AbstractArray; scale = nothing) = Embed(scale, embeddings)
-Embed(hidden_size::Int, vocab_size::Int; scale = nothing) = Embed(scale, randn(Float32, hidden_size, vocab_size))
+Embed(embeddings::AbstractArray; scale=nothing) = Embed(scale, embeddings)
+Embed(hidden_size::Int, vocab_size::Int; scale=nothing) = Embed(scale, randn(Float32, hidden_size, vocab_size))
 
 (embed::Embed{Nothing})(x) = NNlib.gather(embed.embeddings, x)
 function (embed::Embed)(x)
@@ -51,7 +51,7 @@ function Base.show(io::IO, embed::Embed)
     !isnothing(embed.scale) && print(io, ", scale = ", embed.scale)
     print(io, ')')
 end
-@fluxlayershow Embed false
+
 
 """
     EmbedDecoder(embed::Embed; bias = false)
@@ -60,15 +60,15 @@ A layer that share weight with an embedding layer `embed` and return the logit.
 
 See also: [`Embed`](@ref)
 """
-struct EmbedDecoder{E<:AbstractEmbedding, B}
+struct EmbedDecoder{E<:AbstractEmbedding,B}
     embed::E
     bias::B
 end
-@functor EmbedDecoder
+Flux.@layer EmbedDecoder
 
-EmbedDecoder(embed::Embed; bias = false) = bias ?
-    EmbedDecoder(embed, zeros(eltype(embed.embeddings), size(embed.embeddings, 1))) :
-    EmbedDecoder(embed, nothing)
+EmbedDecoder(embed::Embed; bias=false) = bias ?
+                                         EmbedDecoder(embed, zeros(eltype(embed.embeddings), size(embed.embeddings, 1))) :
+                                         EmbedDecoder(embed, nothing)
 
 embed_decode(scale, embeddings, bias, x) = dense(nothing, embeddings', bias, x, scale)
 embed_decode(scale::Nothing, embeddings, bias, x) = dense(nothing, embeddings', bias, x)
@@ -98,7 +98,7 @@ function Base.show(io::IO, e::EmbedDecoder)
     end
     print(io, ')')
 end
-@fluxlayershow EmbedDecoder false
+
 
 """
     FixedLenPositionEmbed(hidden_size::Int, max_length::Int = 1024)
@@ -145,12 +145,12 @@ julia> pe(randn(3,3))
 
 ```
 """
-struct FixedLenPositionEmbed{E <: AbstractArray} <: AbstractEmbedding
+struct FixedLenPositionEmbed{E<:AbstractArray} <: AbstractEmbedding
     embeddings::E
 end
-@functor FixedLenPositionEmbed
+Flux.@layer FixedLenPositionEmbed
 
-FixedLenPositionEmbed(hidden_size::Int, max_length::Int = 1024) =
+FixedLenPositionEmbed(hidden_size::Int, max_length::Int=1024) =
     FixedLenPositionEmbed(init_weight(Float32, hidden_size, max_length))
 
 (embed::FixedLenPositionEmbed)(x) = reshape(embed(size(x, 2)), Val(ndims(x)))
@@ -158,7 +158,7 @@ FixedLenPositionEmbed(hidden_size::Int, max_length::Int = 1024) =
 (embed::FixedLenPositionEmbed)(len::Int) = embed.embeddings[:, Base.OneTo(len)]
 
 Base.show(io::IO, embed::FixedLenPositionEmbed) = (print(io, "FixedLenPositionEmbed"); print(io, size(embed.embeddings)))
-@fluxlayershow FixedLenPositionEmbed false
+
 
 """
     SinCosPositionEmbed(hidden_size::Int)
@@ -210,7 +210,7 @@ struct SinCosPositionEmbed{F} <: AbstractEmbedding
     hidden_size::Int
     normalized::Bool
 end
-SinCosPositionEmbed(hidden_size::Int, normalized::Bool = false) = SinCosPositionEmbed(
+SinCosPositionEmbed(hidden_size::Int, normalized::Bool=false) = SinCosPositionEmbed(
     NeuralAttentionlib.default_position_func(hidden_size), hidden_size, normalized)
 SinCosPositionEmbed(f, hidden_size::Int) = SinCosPositionEmbed(f, hidden_size, false)
 
@@ -232,17 +232,17 @@ end
 
 A layer that help to get embedding and apply on the input. Used with position embeddings.
 """
-struct ApplyEmbed{F, E, I}
+struct ApplyEmbed{F,E,I}
     apply::F
     embed::E
     indices::I
 end
-@functor ApplyEmbed (apply, embed)
+Flux.@layer ApplyEmbed trainable = (apply, embed)
 
 ApplyEmbed(embed) = ApplyEmbed(.+, embed)
 ApplyEmbed(apply, embed) = ApplyEmbed(apply, embed, identity)
 
-function (e::ApplyEmbed)(x, indices = ChainRulesCore.ignore_derivatives(() -> e.indices(x)))
+function (e::ApplyEmbed)(x, indices=ChainRulesCore.ignore_derivatives(() -> e.indices(x)))
     embeddings = e.embed(indices)
     return e.apply(x, embeddings)
 end
@@ -268,4 +268,4 @@ function Base.show(io::IO, e::ApplyEmbed)
     end
     print(io, ')')
 end
-@fluxlayershow ApplyEmbed false
+

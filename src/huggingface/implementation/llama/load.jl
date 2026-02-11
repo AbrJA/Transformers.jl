@@ -1,5 +1,5 @@
-using ..Layers
-using ..Layers: CompositeEmbedding, SelfAttention
+using ..TransformerLayers
+using ..TransformerLayers: CompositeEmbedding, SelfAttention
 using ChainRulesCore
 using Functors
 using Static
@@ -9,12 +9,12 @@ using NeuralAttentionlib: WithScore
 
 include("attention.jl")
 
-struct LLamaGated{G, D}
+struct LLamaGated{G,D}
     gate::G
     dense::D
 end
-@functor LLamaGated
-@fluxlayershow LLamaGated
+Flux.@layer LLamaGated
+
 
 (m::LLamaGated)(x) = m.gate(x) .* m.dense(x)
 
@@ -38,33 +38,33 @@ function load_model(_type::Type{HGFLlamaForCausalLM}, cfg, state_dict, prefix)
         embedding = model.embed.token.embeddings
     else
         vocab_size, dims, factor = cfg[:vocab_size], cfg[:hidden_size], Float32(cfg[:initializer_range])
-        embedding = getweight(weight_init(vocab_size, dims, factor), Layers.Embed,
-                              state_dict, joinname(prefix, "lm_head.weight"))
+        embedding = getweight(weight_init(vocab_size, dims, factor), TransformerLayers.Embed,
+            state_dict, joinname(prefix, "lm_head.weight"))
     end
-    lmhead = Layers.EmbedDecoder(Layers.Embed(embedding))
-    return HGFLlamaForCausalLM(model, Layers.Branch{(:logit,), (:hidden_state,)}(lmhead))
+    lmhead = TransformerLayers.EmbedDecoder(TransformerLayers.Embed(embedding))
+    return HGFLlamaForCausalLM(model, TransformerLayers.Branch{(:logit,),(:hidden_state,)}(lmhead))
 end
 
 function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:CompositeEmbedding}, cfg, state_dict, prefix)
     vocab_size, dims, pad_id = cfg[:vocab_size], cfg[:hidden_size], cfg[:pad_token_id]
     factor = Float32(cfg[:initializer_range])
-    token_weight = getweight(Layers.Embed, state_dict, joinname(prefix, "embed_tokens.weight")) do
+    token_weight = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "embed_tokens.weight")) do
         weight = weight_init(vocab_size, dims, factor)()
         if !isnothing(pad_id)
             weight[:, pad_id+1] .= 0
         end
         return weight
     end
-    embed = CompositeEmbedding(token = Layers.Embed(token_weight))
+    embed = CompositeEmbedding(token=TransformerLayers.Embed(token_weight))
     return embed
 end
 
-function load_model(::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:Layers.RMSLayerNorm}, cfg, state_dict, prefix)
+function load_model(::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:TransformerLayers.RMSLayerNorm}, cfg, state_dict, prefix)
     dims = cfg[:hidden_size]
     ln_ϵ = Float32(cfg[:rms_norm_eps])
     ln_init = one_init(dims)
     ln_weight = getweight(ln_init, Array, state_dict, joinname(prefix, "weight"))
-    return Layers.RMSLayerNorm(ln_weight, ln_ϵ)
+    return TransformerLayers.RMSLayerNorm(ln_weight, ln_ϵ)
 end
 
 function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:SelfAttention}, cfg, state_dict, prefix)
@@ -79,14 +79,14 @@ function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:SelfAttenti
     rotary_pe_base = Float64(cfg[:rope_theta])
     @assert isnothing(cfg[:rope_scaling]) "Scaling Rotary Embedding is not support yet"
     q_weight = getweight(weight_init(dims, dims, factor), Array,
-                         state_dict, joinname(prefix, "q_proj.weight"))
+        state_dict, joinname(prefix, "q_proj.weight"))
     k_weight = getweight(weight_init(dims, kv_head * head_dims, factor), Array,
-                         state_dict, joinname(prefix, "k_proj.weight"))
+        state_dict, joinname(prefix, "k_proj.weight"))
     v_weight = getweight(weight_init(dims, kv_head * head_dims, factor), Array,
-                         state_dict, joinname(prefix, "v_proj.weight"))
+        state_dict, joinname(prefix, "v_proj.weight"))
     o_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "o_proj.weight"))
-    qkv_proj = Layers.Fork(Layers.Dense(q_weight), Layers.Dense(k_weight), Layers.Dense(v_weight))
-    o_proj = Layers.Dense(o_weight)
+    qkv_proj = TransformerLayers.Fork(TransformerLayers.Dense(q_weight), TransformerLayers.Dense(k_weight), TransformerLayers.Dense(v_weight))
+    o_proj = TransformerLayers.Dense(o_weight)
     if grouped_attn
         op = CausalLlamaRoPEGroupedQueryAttenOp(rotary_pe_base, head, kv_head)
     else
@@ -97,7 +97,7 @@ function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:SelfAttenti
 end
 
 function load_model(
-    _type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:Layers.Chain{<:Tuple{Layers.Dense, Layers.Dense}}},
+    _type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}},
     cfg, state_dict, prefix
 )
     dims = cfg[:hidden_size]
@@ -105,14 +105,14 @@ function load_model(
     factor = Float32(cfg[:initializer_range])
     act = ACT2FN[Symbol(cfg[:hidden_act])]
     gate_weight = getweight(weight_init(dims, ff_dims, factor), Array,
-                            state_dict, joinname(prefix, "gate_proj.weight"))
+        state_dict, joinname(prefix, "gate_proj.weight"))
     wi_weight = getweight(weight_init(dims, ff_dims, factor), Array,
-                          state_dict, joinname(prefix, "up_proj.weight"))
+        state_dict, joinname(prefix, "up_proj.weight"))
     wo_weight = getweight(weight_init(ff_dims, dims, factor), Array,
-                          state_dict, joinname(prefix, "down_proj.weight"))
-    return Layers.Chain(LLamaGated(Layers.Dense(act, gate_weight),
-                                   Layers.Dense(wi_weight)),
-                        Layers.Dense(wo_weight))
+        state_dict, joinname(prefix, "down_proj.weight"))
+    return TransformerLayers.Chain(LLamaGated(TransformerLayers.Dense(act, gate_weight),
+            TransformerLayers.Dense(wi_weight)),
+        TransformerLayers.Dense(wo_weight))
 end
 
 function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -120,20 +120,20 @@ function load_model(_type::Type{<:HGFLlamaPreTrainedModel}, ::Type{<:Transformer
     collect_output = cfg[:output_attentions] || cfg[:output_hidden_states]
     blocks = []
     for i = 1:n
-        lprefix = joinname(prefix, :layers, i-1)
+        lprefix = joinname(prefix, :layers, i - 1)
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "self_attn"))
-        sa_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "input_layernorm"))
-        sa = Layers.PreNormResidual(sa, sa_ln)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense, Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
-        ff_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "post_attention_layernorm"))
-        ff = Layers.PreNormResidual(ff, ff_ln)
+        sa_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "input_layernorm"))
+        sa = TransformerLayers.PreNormResidual(sa, sa_ln)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "post_attention_layernorm"))
+        ff = TransformerLayers.PreNormResidual(ff, ff_ln)
         block = TransformerBlock(sa, ff)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(prefix, "norm"))
-    return Layers.Chain(trf, final_ln)
+    final_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(prefix, "norm"))
+    return TransformerLayers.Chain(trf, final_ln)
 end
 
 
@@ -163,8 +163,8 @@ function get_state_dict(p::Type{<:HGFLlamaPreTrainedModel}, m::SelfAttention, st
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFLlamaPreTrainedModel}, m::Layers.Chain{<:Tuple{Any, Layers.Dense}},
-                        state_dict, prefix)
+function get_state_dict(p::Type{<:HGFLlamaPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{Any,TransformerLayers.Dense}},
+    state_dict, prefix)
     get_state_dict(p, m[1].gate, state_dict, joinname(prefix, "gate_proj"))
     get_state_dict(p, m[1].dense, state_dict, joinname(prefix, "up_proj"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "down_proj"))
@@ -181,7 +181,7 @@ end
 
 function get_state_dict(p::Type{<:HGFLlamaPreTrainedModel}, m::Transformer, state_dict, prefix)
     for (i, t) in enumerate(m.blocks)
-        get_state_dict(p, t, state_dict, joinname(prefix, :layers, i-1))
+        get_state_dict(p, t, state_dict, joinname(prefix, :layers, i - 1))
     end
     return state_dict
 end

@@ -1,4 +1,4 @@
-import ..Datasets: dataset, datafile, reader, Mode, Test
+import ..dataset, ..datafile, ..reader, ..Mode, ..Test
 
 wnli_init() = register(DataDep(
     "GLUE-WNLI",
@@ -7,23 +7,23 @@ wnli_init() = register(DataDep(
     """,
     "https://dl.fbaipublicfiles.com/glue/data/WNLI.zip",
     "ae0e8e4d16f4d46d4a0a566ec7ecceccfd3fbfaa4a7a4b4e02848c0f2561ac46";
-    post_fetch_method = fn -> begin
-      Base.Filesystem.rename(fn, "WNLI.zip")
-      DataDeps.unpack("WNLI.zip")
-      innerdir = "WNLI"
-      innerfiles = readdir(innerdir)
-      mv.(joinpath.(innerdir, innerfiles), innerfiles)
-      rm(innerdir)
+    post_fetch_method=fn -> begin
+        Base.Filesystem.rename(fn, "WNLI.zip")
+        DataDeps.unpack("WNLI.zip")
+        innerdir = "WNLI"
+        innerfiles = readdir(innerdir)
+        mv.(joinpath.(innerdir, innerfiles), innerfiles)
+        rm(innerdir)
     end
 ))
 
 struct WNLI <: Dataset end
 
-function dataset(::Type{M}, d::WNLI) where M <: Mode
+function dataset(::Type{M}, d::WNLI) where M<:Mode
     ds = reader(datafile(M, d))
     header = split(take!(ds), '\t')
     field_num = length(header)
-    needed_field = M == Test ? (2,3) : (2,3,4)
+    needed_field = M == Test ? (2, 3) : (2, 3, 4)
     rds = get_channels(String, length(needed_field))
 
     task = @async begin

@@ -2,8 +2,8 @@ module ClozeTest
 using Fetch
 using DataDeps
 
-using ..Datasets: Dataset
-import ..Datasets: testfile, trainfile, get_labels
+import ..Dataset
+import ..testfile, ..trainfile, ..get_labels
 
 export StoryCloze
 

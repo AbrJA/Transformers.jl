@@ -6,7 +6,7 @@ using Functors
 using DataStructures: OrderedDict
 using Pickle
 
-using ..Layers: @fluxshow, @fluxlayershow
+using ..TransformerLayers: @fluxshow, @fluxlayershow
 
 include("./load.jl")
 
@@ -90,7 +90,7 @@ function load_model(model_type, model_name::AbstractString, task, state_dict;
         end
     end
     model = load_model(T, config, state_dict, prefix)
-    trainmode || (model = Layers.testmode(model))
+    trainmode || (model = TransformerLayers.testmode(model))
     return model
 end
 
@@ -118,8 +118,8 @@ end
 
 function is_seq2seq(model)
     has_seq2seq = Ref(false)
-    StructWalk.scan(Layers.LayerStyle, model) do x
-        x isa Layers.Seq2Seq && (has_seq2seq[] = true)
+    StructWalk.scan(TransformerLayers.LayerStyle, model) do x
+        x isa TransformerLayers.Seq2Seq && (has_seq2seq[] = true)
     end
     return has_seq2seq[]
 end

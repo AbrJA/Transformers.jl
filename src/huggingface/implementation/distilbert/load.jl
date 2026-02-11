@@ -1,5 +1,5 @@
-using ..Layers
-using ..Layers: CompositeEmbedding, SelfAttention, MultiheadQKVAttenOp
+using ..TransformerLayers
+using ..TransformerLayers: CompositeEmbedding, SelfAttention, MultiheadQKVAttenOp
 using ChainRulesCore
 using Functors
 using FillArrays
@@ -12,8 +12,8 @@ using NeuralAttentionlib: WithScore
 struct DistilBertQA{D}
     dense::D
 end
-@functor DistilBertQA
-@fluxlayershow DistilBertQA
+Flux.@layer DistilBertQA
+
 
 function (m::DistilBertQA)(x)
     logits = m.dense(x)
@@ -53,8 +53,8 @@ end
 
 function load_model(
     _type::Type{<:Union{
-        HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM, 
-        HGFDistilBertForTokenClassification, HGFDistilBertForQuestionAnswering,
+        HGFDistilBertForCausalLM,HGFDistilBertForMaskedLM,
+        HGFDistilBertForTokenClassification,HGFDistilBertForQuestionAnswering,
     }},
     ::Type{HGFDistilBertModel}, cfg, state_dict, prefix)
     embed = load_model(_type, CompositeEmbedding, cfg, state_dict, joinname(prefix, "embeddings"))
@@ -62,7 +62,7 @@ function load_model(
     return HGFDistilBertModel(embed, encoder)
 end
 
-function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM}}, cfg, state_dict, prefix)
+function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM,HGFDistilBertForMaskedLM}}, cfg, state_dict, prefix)
     model = load_model(_type, HGFDistilBertModel, cfg, state_dict, joinname(prefix, "distilbert"))
     dims, vocab_size, pad_id = cfg[:hidden_size], cfg[:vocab_size], cfg[:pad_token_id]
     factor = Float32(cfg[:initializer_range])
@@ -70,20 +70,20 @@ function load_model(_type::Type{<:Union{HGFDistilBertForCausalLM, HGFDistilBertF
     # HGFDistilBertPredictionHeadTransform
     head_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "vocab_transform.weight"))
     head_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "vocab_transform.bias"))
-    head_ln = load_model(HGFDistilBertModel, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "vocab_layer_norm"))
+    head_ln = load_model(HGFDistilBertModel, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "vocab_layer_norm"))
     # HGFDistilBertLMPredictionHead
     if cfg[:tie_word_embeddings]
         embedding = model.embed[1].token.embeddings
     else
-        embedding = getweight(Layers.Embed, state_dict, joinname(prefix, "vocab_projector.weight")) do
+        embedding = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "vocab_projector.weight")) do
             weight = weight_init(vocab_size, dims, factor)()
             weight[:, pad_id+1] .= 0
             return weight
         end
     end
     bias = getweight(zero_init(vocab_size), Array, state_dict, joinname(prefix, "vocab_projector.bias"))
-    lmhead = Layers.Chain(Layers.Dense(act, head_weight, head_bias), head_ln, Layers.EmbedDecoder(Layers.Embed(embedding), bias))
-    return _type(model, Layers.Branch{(:logit,),(:hidden_state,)}(lmhead))
+    lmhead = TransformerLayers.Chain(TransformerLayers.Dense(act, head_weight, head_bias), head_ln, TransformerLayers.EmbedDecoder(TransformerLayers.Embed(embedding), bias))
+    return _type(model, TransformerLayers.Branch{(:logit,),(:hidden_state,)}(lmhead))
 end
 
 function load_model(_type::Type{HGFDistilBertForSequenceClassification}, cfg, state_dict, prefix)
@@ -92,7 +92,7 @@ function load_model(_type::Type{HGFDistilBertForSequenceClassification}, cfg, st
     factor = Float32(cfg[:initializer_range])
     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
-    cls = Layers.Branch{(:logit,),(:pooled,)}(Layers.Dense(weight, bias))
+    cls = TransformerLayers.Branch{(:logit,),(:pooled,)}(TransformerLayers.Dense(weight, bias))
     return HGFDistilBertForSequenceClassification(model, cls)
 end
 
@@ -110,7 +110,7 @@ function load_model(_type::Type{HGFDistilBertForTokenClassification}, cfg, state
     factor = Float32(cfg[:initializer_range])
     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
-    cls = Layers.Branch{(:logit,),(:hidden_state,)}(Layers.Dense(weight, bias))
+    cls = TransformerLayers.Branch{(:logit,),(:hidden_state,)}(TransformerLayers.Dense(weight, bias))
     return HGFDistilBertForTokenClassification(model, cls)
 end
 
@@ -120,18 +120,18 @@ function load_model(_type::Type{HGFDistilBertForQuestionAnswering}, cfg, state_d
     factor = Float32(cfg[:initializer_range])
     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "qa_outputs.weight"))
     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "qa_outputs.bias"))
-    cls = DistilBertQA(Layers.Dense(weight, bias))
+    cls = DistilBertQA(TransformerLayers.Dense(weight, bias))
     return HGFDistilBertForQuestionAnswering(model, cls)
 end
 
-function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:Layers.LayerNorm}, cfg, state_dict, prefix)
+function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:TransformerLayers.LayerNorm}, cfg, state_dict, prefix)
     dims = cfg[:hidden_size]
     ln_ϵ = Float32(cfg[:layer_norm_eps])
     weight_name = joinname(prefix, "weight")
     bias_name = joinname(prefix, "bias")
     ln_weight = getweight(one_init(dims), Array, state_dict, weight_name)
     ln_bias = getweight(zero_init(dims), Array, state_dict, bias_name)
-    return Layers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
+    return TransformerLayers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
 end
 
 function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:CompositeEmbedding}, cfg, state_dict, prefix)
@@ -142,19 +142,19 @@ function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:Compos
     pe_type = cfg[:position_embedding_type]
     pe_type == "absolute" || load_error("Right now only absolute PE is supported in DistilBert.")
     factor = Float32(cfg[:initializer_range])
-    token_weight = getweight(Layers.Embed, state_dict, joinname(prefix, "word_embeddings.weight")) do
+    token_weight = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "word_embeddings.weight")) do
         weight = weight_init(vocab_size, dims, factor)()
         weight[:, pad_id+1] .= 0
         return weight
     end
-    pos_weight = getweight(weight_init(max_pos, dims, factor), Layers.Embed,
+    pos_weight = getweight(weight_init(max_pos, dims, factor), TransformerLayers.Embed,
         state_dict, joinname(prefix, "position_embeddings.weight"))
     embed = CompositeEmbedding(
-        token=Layers.Embed(token_weight),
-        position=Layers.FixedLenPositionEmbed(pos_weight)
+        token=TransformerLayers.Embed(token_weight),
+        position=TransformerLayers.FixedLenPositionEmbed(pos_weight)
     )
-    ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "LayerNorm"))
-    return Layers.Chain(embed, Layers.DropoutLayer(ln, p))
+    ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "LayerNorm"))
+    return TransformerLayers.Chain(embed, TransformerLayers.DropoutLayer(ln, p))
 end
 
 function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:SelfAttention}, cfg, state_dict, prefix)
@@ -174,20 +174,20 @@ function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:SelfAt
     q_bias = getweight(b_init, Array, state_dict, joinname(prefix, "q_lin.bias"))
     k_bias = getweight(b_init, Array, state_dict, joinname(prefix, "k_lin.bias"))
     v_bias = getweight(b_init, Array, state_dict, joinname(prefix, "v_lin.bias"))
-    qkv_proj = Layers.Fork(
-        Layers.Dense(q_weight, q_bias),
-        Layers.Dense(k_weight, k_bias),
-        Layers.Dense(v_weight, v_bias))
+    qkv_proj = TransformerLayers.Fork(
+        TransformerLayers.Dense(q_weight, q_bias),
+        TransformerLayers.Dense(k_weight, k_bias),
+        TransformerLayers.Dense(v_weight, v_bias))
     o_weight = getweight(w_init, Array, state_dict, joinname(prefix, "out_lin.weight"))
     o_bias = getweight(b_init, Array, state_dict, joinname(prefix, "out_lin.bias"))
-    o_proj = Layers.Dense(o_weight, o_bias)
+    o_proj = TransformerLayers.Dense(o_weight, o_bias)
     op = MultiheadQKVAttenOp(head, p)
     return_score && (op = WithScore(op))
     return SelfAttention(op, qkv_proj, o_proj)
 end
 
 function load_model(
-    _type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}}},
+    _type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}},
     cfg, state_dict, prefix
 )
     dims, ff_dims = cfg[:hidden_size], cfg[:intermediate_size]
@@ -231,11 +231,11 @@ end
 function get_state_dict(m::HGFDistilBertModel, state_dict, prefix)
     get_state_dict(HGFDistilBertModel, m.embed[1], state_dict, joinname(prefix, "embeddings"))
     get_state_dict(HGFDistilBertModel, m.embed[2], state_dict, joinname(prefix, "embeddings.LayerNorm"))
-    get_state_dict(HGFDistilBertModel, m.encoder, state_dict, joinname(prefix, "transformer"))    
+    get_state_dict(HGFDistilBertModel, m.encoder, state_dict, joinname(prefix, "transformer"))
     return state_dict
 end
 
-function get_state_dict(m::Union{HGFDistilBertForCausalLM, HGFDistilBertForMaskedLM}, state_dict, prefix)
+function get_state_dict(m::Union{HGFDistilBertForCausalLM,HGFDistilBertForMaskedLM}, state_dict, prefix)
     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
     get_state_dict(HGFDistilBertModel, m.cls.layer[1], state_dict, joinname(prefix, "vocab_transform"))
     get_state_dict(HGFDistilBertModel, m.cls.layer[2], state_dict, joinname(prefix, "vocab_layer_norm"))
@@ -243,7 +243,7 @@ function get_state_dict(m::Union{HGFDistilBertForCausalLM, HGFDistilBertForMaske
     return state_dict
 end
 
-function get_state_dict(m::Union{HGFDistilBertForSequenceClassification, HGFDistilBertForTokenClassification}, state_dict, prefix)
+function get_state_dict(m::Union{HGFDistilBertForSequenceClassification,HGFDistilBertForTokenClassification}, state_dict, prefix)
     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
     get_state_dict(HGFDistilBertModel, m.cls, state_dict, joinname(prefix, "classifier"))
     return state_dict

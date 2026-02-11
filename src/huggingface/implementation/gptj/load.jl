@@ -1,5 +1,5 @@
-using ..Layers
-using ..Layers: CompositeEmbedding, SelfAttention, CausalRoPEMultiheadQKVAttenOp
+using ..TransformerLayers
+using ..TransformerLayers: CompositeEmbedding, SelfAttention, CausalRoPEMultiheadQKVAttenOp
 using ChainRulesCore
 using Functors
 using Static
@@ -7,19 +7,19 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-struct ParallelPreNormTransformerBlock{A, F, N} <: Layers.AbstractTransformerBlock
+struct ParallelPreNormTransformerBlock{A,F,N} <: TransformerLayers.AbstractTransformerBlock
     attention::A
     feedforward::F
     norm::N
 end
-@functor ParallelPreNormTransformerBlock
+Flux.@layer ParallelPreNormTransformerBlock
 
 function (b::ParallelPreNormTransformerBlock)(nt::NamedTuple)
-    nt2 = Layers.apply_on_namedtuple(b.norm, nt)
-    a = Layers.apply_on_namedtuple(b.attention, nt2)
-    f = Layers.apply_on_namedtuple(b.feedforward, nt2)
+    nt2 = TransformerLayers.apply_on_namedtuple(b.norm, nt)
+    a = TransformerLayers.apply_on_namedtuple(b.attention, nt2)
+    f = TransformerLayers.apply_on_namedtuple(b.feedforward, nt2)
     hidden_state = a.hidden_state + f.hidden_state + nt.hidden_state
-    return Layers.return_hidden_state(a, hidden_state)
+    return TransformerLayers.return_hidden_state(a, hidden_state)
 end
 
 @fluxshow ParallelPreNormTransformerBlock
@@ -43,24 +43,25 @@ function load_model(_type::Type{HGFGPTJForCausalLM}, cfg, state_dict, prefix)
         embedding = model.embed.layer.token.embeddings
     else
         vocab_size, dims, factor = cfg[:vocab_size], cfg[:n_embd], Float32(cfg[:initializer_range])
-        embedding = getweight(weight_init(vocab_size, dims, factor), Layers.Embed,
-                              state_dict, joinname(prefix, "lm_head.weight"))
+        embedding = getweight(weight_init(vocab_size, dims, factor), TransformerLayers.Embed,
+            state_dict, joinname(prefix, "lm_head.weight"))
     end
-    lmhead = Layers.EmbedDecoder(Layers.Embed(embedding))
-    return HGFGPTJForCausalLM(model, Layers.Branch{(:logit,), (:hidden_state,)}(lmhead))
+    lmhead = TransformerLayers.EmbedDecoder(TransformerLayers.Embed(embedding))
+    return HGFGPTJForCausalLM(model, TransformerLayers.Branch{(:logit,),(:hidden_state,)}(lmhead))
 end
 
 
 function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:CompositeEmbedding}, cfg, state_dict, prefix)
     vocab_size, dims = cfg[:vocab_size], cfg[:n_embd]
     factor = Float32(cfg[:initializer_range])
-    p = cfg[:embd_pdrop]; p = iszero(p) ? nothing : p
-    token_weight = getweight(weight_init(vocab_size, dims, factor), Layers.Embed, state_dict, joinname(prefix, "wte.weight"))
-    embed = CompositeEmbedding(token = Layers.Embed(token_weight))
-    return Layers.DropoutLayer(embed, p)
+    p = cfg[:embd_pdrop]
+    p = iszero(p) ? nothing : p
+    token_weight = getweight(weight_init(vocab_size, dims, factor), TransformerLayers.Embed, state_dict, joinname(prefix, "wte.weight"))
+    embed = CompositeEmbedding(token=TransformerLayers.Embed(token_weight))
+    return TransformerLayers.DropoutLayer(embed, p)
 end
 
-function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:Layers.LayerNorm}, cfg, state_dict, prefix)
+function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:TransformerLayers.LayerNorm}, cfg, state_dict, prefix)
     dims = cfg[:n_embd]
     ln_ϵ = Float32(cfg[:layer_norm_epsilon])
     old_weight_name = joinname(prefix, "gamma")
@@ -69,29 +70,30 @@ function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:Layers.Layer
     bias_name = haskey(state_dict, old_bias_name) ? old_bias_name : joinname(prefix, "bias")
     ln_weight = getweight(one_init(dims), Array, state_dict, weight_name)
     ln_bias = getweight(zero_init(dims), Array, state_dict, bias_name)
-    return Layers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
+    return TransformerLayers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
 end
 
 function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:SelfAttention}, cfg, state_dict, prefix)
     head, dims = cfg[:n_head], cfg[:n_embd]
     @assert dims % head == 0 "The hidden size is not a multiple of the number of attention heads."
-    p = cfg[:attn_pdrop]; p = iszero(p) ? nothing : p
+    p = cfg[:attn_pdrop]
+    p = iszero(p) ? nothing : p
     return_score = cfg[:output_attentions]
     factor = Float32(cfg[:initializer_range])
     rotary_dim = get(cfg, :rotary_dim, nothing)
     q_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "q_proj.weight"))
     k_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "k_proj.weight"))
     v_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "v_proj.weight"))
-    qkv_proj = Layers.Fork(Layers.Dense(q_weight), Layers.Dense(k_weight), Layers.Dense(v_weight))
+    qkv_proj = TransformerLayers.Fork(TransformerLayers.Dense(q_weight), TransformerLayers.Dense(k_weight), TransformerLayers.Dense(v_weight))
     o_weight = getweight(weight_init(dims, dims, factor), Array, state_dict, joinname(prefix, "out_proj.weight"))
-    o_proj = Layers.Dense(o_weight)
+    o_proj = TransformerLayers.Dense(o_weight)
     op = CausalRoPEMultiheadQKVAttenOp(rotary_dim, head, p)
     return_score && (op = WithScore(op))
     return SelfAttention(op, qkv_proj, o_proj)
 end
 
 function load_model(
-    _type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:Layers.Chain{<:Tuple{Layers.Dense, Layers.Dense}}},
+    _type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}},
     cfg, state_dict, prefix
 )
     dims = cfg[:n_embd]
@@ -108,15 +110,16 @@ end
 
 function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
     n = cfg[:n_layer]
-    p = cfg[:resid_pdrop]; p = iszero(p) ? nothing : p
+    p = cfg[:resid_pdrop]
+    p = iszero(p) ? nothing : p
     collect_output = cfg[:output_attentions] || cfg[:output_hidden_states]
     blocks = []
     for i = 1:n
-        lprefix = joinname(prefix, :h, i-1)
+        lprefix = joinname(prefix, :h, i - 1)
         ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "attn"))
         sa = Layers.DropoutLayer(sa, p)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense, Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
         ff = Layers.DropoutLayer(ff, p)
         block = ParallelPreNormTransformerBlock(sa, ff, ln)
         push!(blocks, block)
@@ -153,8 +156,8 @@ function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::SelfAttention, sta
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense, Layers.Dense}},
-                        state_dict, prefix)
+function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+    state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "fc_in"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "fc_out"))
     return state_dict
@@ -169,7 +172,7 @@ end
 
 function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::Transformer, state_dict, prefix)
     for (i, t) in enumerate(m.blocks)
-        get_state_dict(p, t, state_dict, joinname(prefix, :h, i-1))
+        get_state_dict(p, t, state_dict, joinname(prefix, :h, i - 1))
     end
     return state_dict
 end

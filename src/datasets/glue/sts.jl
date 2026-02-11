@@ -1,4 +1,4 @@
-import ..Datasets: dataset, datafile, reader, Mode, Test
+import ..dataset, ..datafile, ..reader, ..Mode, ..Test
 
 sts_init() = register(DataDep(
     "GLUE-STS",
@@ -7,23 +7,23 @@ sts_init() = register(DataDep(
     """,
     "https://dl.fbaipublicfiles.com/glue/data/STS-B.zip",
     "e60a6393de5a8b5b9bac5020a1554b54e3691f9d600b775bd131e613ac179c85";
-    post_fetch_method = fn -> begin
-      Base.Filesystem.rename(fn, "STS-B.zip")
-      DataDeps.unpack("STS-B.zip")
-      innerdir = "STS-B"
-      innerfiles = readdir(innerdir)
-      mv.(joinpath.(innerdir, innerfiles), innerfiles)
-      rm(innerdir)
+    post_fetch_method=fn -> begin
+        Base.Filesystem.rename(fn, "STS-B.zip")
+        DataDeps.unpack("STS-B.zip")
+        innerdir = "STS-B"
+        innerfiles = readdir(innerdir)
+        mv.(joinpath.(innerdir, innerfiles), innerfiles)
+        rm(innerdir)
     end
 ))
 
 struct STS <: Dataset end
 
-function dataset(::Type{M}, d::STS) where M <: Mode
+function dataset(::Type{M}, d::STS) where M<:Mode
     ds = reader(datafile(M, d))
     header = split(take!(ds), '\t')
     field_num = length(header)
-    needed_field = (8,9,10)
+    needed_field = (8, 9, 10)
     rds = get_channels(String, length(needed_field))
 
     task = @async begin

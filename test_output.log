@@ -1,0 +1,51 @@
+WARNING: Method definition show(IO, Base.Multimedia.MIME{:var"text/plain"}, Transformers.TransformerLayers.Fork{T} where T<:Tuple) in module TransformerLayers at /home/abr/.julia/packages/Flux/DZYiO/src/layers/show.jl:7 overwritten at /home/abr/Documents/GitHub/Julia/Transformers.jl/src/layers/utils.jl:110.
+ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
+ERROR: LoadError: The macro `@layer` expects here `keyword = (fields...,)`, got (layer,)
+Stacktrace:
+  [1] error(::String, ::Expr)
+    @ Base ./error.jl:44
+  [2] _layer_macro(::Symbol, ::Vararg{Any})
+    @ Flux ~/.julia/packages/Flux/DZYiO/src/layers/macro.jl:84
+  [3] var"@layer"(__source__::LineNumberNode, __module__::Module, exs::Vararg{Any})
+    @ Flux ~/.julia/packages/Flux/DZYiO/src/layers/macro.jl:56
+  [4] include(mod::Module, _path::String)
+    @ Base ./Base.jl:495
+  [5] include(x::String)
+    @ Transformers.TransformerLayers ~/Documents/GitHub/Julia/Transformers.jl/src/TransformerLayers.jl:1
+  [6] top-level scope
+    @ ~/Documents/GitHub/Julia/Transformers.jl/src/TransformerLayers.jl:20
+  [7] include(mod::Module, _path::String)
+    @ Base ./Base.jl:495
+  [8] include(x::String)
+    @ Transformers ~/Documents/GitHub/Julia/Transformers.jl/src/Transformers.jl:1
+  [9] top-level scope
+    @ ~/Documents/GitHub/Julia/Transformers.jl/src/Transformers.jl:6
+ [10] include(mod::Module, _path::String)
+    @ Base ./Base.jl:495
+ [11] _require(pkg::Base.PkgId, env::String)
+    @ Base ./loading.jl:2084
+ [12] __require_prelocked(uuidkey::Base.PkgId, env::String)
+    @ Base ./loading.jl:1882
+ [13] #invoke_in_world#3
+    @ ./essentials.jl:926 [inlined]
+ [14] invoke_in_world
+    @ ./essentials.jl:923 [inlined]
+ [15] _require_prelocked(uuidkey::Base.PkgId, env::String)
+    @ Base ./loading.jl:1873
+ [16] macro expansion
+    @ ./loading.jl:1860 [inlined]
+ [17] macro expansion
+    @ ./lock.jl:267 [inlined]
+ [18] __require(into::Module, mod::Symbol)
+    @ Base ./loading.jl:1823
+ [19] #invoke_in_world#3
+    @ ./essentials.jl:926 [inlined]
+ [20] invoke_in_world
+    @ ./essentials.jl:923 [inlined]
+ [21] require(into::Module, mod::Symbol)
+    @ Base ./loading.jl:1816
+in expression starting at /home/abr/Documents/GitHub/Julia/Transformers.jl/src/layers/base.jl:74
+in expression starting at /home/abr/Documents/GitHub/Julia/Transformers.jl/src/layers/base.jl:74
+in expression starting at /home/abr/Documents/GitHub/Julia/Transformers.jl/src/TransformerLayers.jl:1
+in expression starting at /home/abr/Documents/GitHub/Julia/Transformers.jl/src/Transformers.jl:1
+in expression starting at /home/abr/Documents/GitHub/Julia/Transformers.jl/test_modules.jl:1

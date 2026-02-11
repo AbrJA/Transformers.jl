@@ -1,4 +1,4 @@
-import ..Datasets: dataset, datafile, reader, Mode, Test
+import ..dataset, ..datafile, ..reader, ..Mode, ..Test
 
 qqp_init() = register(DataDep(
     "GLUE-QQP",
@@ -7,23 +7,23 @@ qqp_init() = register(DataDep(
     """,
     "https://dl.fbaipublicfiles.com/glue/data/QQP-clean.zip",
     "40e7c862c04eb26ee04b67fd900e76c45c6ba8e6d8fab4f8f1f8072a1a3fbae0";
-    post_fetch_method = fn -> begin
-      Base.Filesystem.rename(fn, "QQP-clean.zip")
-      DataDeps.unpack("QQP-clean.zip")
-      innerdir = "QQP"
-      innerfiles = readdir(innerdir)
-      mv.(joinpath.(innerdir, innerfiles), innerfiles)
-      rm(innerdir)
+    post_fetch_method=fn -> begin
+        Base.Filesystem.rename(fn, "QQP-clean.zip")
+        DataDeps.unpack("QQP-clean.zip")
+        innerdir = "QQP"
+        innerfiles = readdir(innerdir)
+        mv.(joinpath.(innerdir, innerfiles), innerfiles)
+        rm(innerdir)
     end
 ))
 
 struct QQP <: Dataset end
 
-function dataset(::Type{M}, d::QQP) where M <: Mode
+function dataset(::Type{M}, d::QQP) where M<:Mode
     ds = reader(datafile(M, d))
     header = split(take!(ds), '\t')
     field_num = length(header)
-    needed_field = M == Test ? (2,3) : (4,5,6)
+    needed_field = M == Test ? (2, 3) : (4, 5, 6)
     rds = get_channels(String, length(needed_field))
 
     task = @async begin

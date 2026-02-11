@@ -4,15 +4,15 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: AbstractAttenOp, MultiheadQKVAttenOp, CausalMultiheadQKVAttenOp, dropout
 
-struct DropoutLayer{L, P} <: LayerStruct
+struct DropoutLayer{L,P} <: LayerStruct
     layer::L
     p::P
 end
-@functor DropoutLayer (layer,)
+Flux.@layer DropoutLayer trainable = (layer,)
 
 argument_names(dp::DropoutLayer) = argument_names(dp.layer)
 
-function (dp::DropoutLayer{L, Nothing})(nt::NamedTuple) where L
+function (dp::DropoutLayer{L,Nothing})(nt::NamedTuple) where L
     y = apply_on_namedtuple(dp.layer, nt)
     return y
 end
@@ -35,20 +35,20 @@ end
 
 abstract type AbstractTransformerBlock <: LayerStruct end
 
-struct TransformerBlock{A, F} <: AbstractTransformerBlock
+struct TransformerBlock{A,F} <: AbstractTransformerBlock
     attention::A
     feedforward::F
 end
-@functor TransformerBlock
+Flux.@layer TransformerBlock
 
 (b::TransformerBlock)(nt::NamedTuple) = apply_on_namedtuple(b.feedforward, apply_on_namedtuple(b.attention, nt))
 
-struct TransformerDecoderBlock{A, C, F} <: AbstractTransformerBlock
+struct TransformerDecoderBlock{A,C,F} <: AbstractTransformerBlock
     attention::A
     crossattention::C
     feedforward::F
 end
-@functor TransformerDecoderBlock
+Flux.@layer TransformerDecoderBlock
 
 argument_names(b::TransformerDecoderBlock) = Base.merge_names(
     Base.merge_names(argument_names(b.crossattention), argument_names(b.attention)),
@@ -61,7 +61,7 @@ argument_names(b::TransformerDecoderBlock) = Base.merge_names(
 struct Residual{L} <: LayerStruct
     layer::L
 end
-@functor Residual
+Flux.@layer Residual
 
 function (resi::Residual)(nt::NamedTuple)
     y = apply_on_namedtuple(resi.layer, nt)
@@ -69,11 +69,11 @@ function (resi::Residual)(nt::NamedTuple)
     return return_hidden_state(y, hidden_state)
 end
 
-struct PreNormResidual{L, N} <: LayerStruct
+struct PreNormResidual{L,N} <: LayerStruct
     layer::L
     norm::N
 end
-@functor PreNormResidual
+Flux.@layer PreNormResidual
 
 function (prenr::PreNormResidual)(nt::NamedTuple)
     norm = apply_on_namedtuple(prenr.norm, nt)
@@ -82,11 +82,11 @@ function (prenr::PreNormResidual)(nt::NamedTuple)
     return return_hidden_state(y, hidden_state)
 end
 
-struct PostNormResidual{L, N} <: LayerStruct
+struct PostNormResidual{L,N} <: LayerStruct
     layer::L
     norm::N
 end
-@functor PostNormResidual
+Flux.@layer PostNormResidual
 
 function (postnr::PostNormResidual)(nt::NamedTuple)
     y = apply_on_namedtuple(postnr.layer, nt)
@@ -95,53 +95,80 @@ function (postnr::PostNormResidual)(nt::NamedTuple)
     return apply_on_namedtuple(postnr.norm, r)
 end
 
-const  PreNormTransformerBlock{A, LN1, F, LN2} = TransformerBlock{ PreNormResidual{A, LN1},  PreNormResidual{F, LN2}}
-const PostNormTransformerBlock{A, LN1, F, LN2} = TransformerBlock{PostNormResidual{A, LN1}, PostNormResidual{F, LN2}}
-const  PreNormTransformerDecoderBlock{A, LN1, C, LN2, F, LN3} =
-    TransformerDecoderBlock{ PreNormResidual{A, LN1},  PreNormResidual{C, LN2},  PreNormResidual{F, LN3}}
-const PostNormTransformerDecoderBlock{A, LN1, C, LN2, F, LN3} =
-    TransformerDecoderBlock{PostNormResidual{A, LN1}, PostNormResidual{C, LN2}, PostNormResidual{F, LN3}}
+const PreNormTransformerBlock{A,LN1,F,LN2} = TransformerBlock{PreNormResidual{A,LN1},PreNormResidual{F,LN2}}
+const PostNormTransformerBlock{A,LN1,F,LN2} = TransformerBlock{PostNormResidual{A,LN1},PostNormResidual{F,LN2}}
+const PreNormTransformerDecoderBlock{A,LN1,C,LN2,F,LN3} =
+    TransformerDecoderBlock{PreNormResidual{A,LN1},PreNormResidual{C,LN2},PreNormResidual{F,LN3}}
+const PostNormTransformerDecoderBlock{A,LN1,C,LN2,F,LN3} =
+    TransformerDecoderBlock{PostNormResidual{A,LN1},PostNormResidual{C,LN2},PostNormResidual{F,LN3}}
 
 function Base.show(io::IO, t::PreNormTransformerBlock)
-    print(io, "PreNormTransformerBlock(");
-    show(io, t.attention.layer); print(io, ", "); show(io, t.attention.norm); print(io, ", ")
-    show(io, t.feedforward.layer); print(io, ", "); show(io, t.feedforward.norm); print(io, ')')
+    print(io, "PreNormTransformerBlock(")
+    show(io, t.attention.layer)
+    print(io, ", ")
+    show(io, t.attention.norm)
+    print(io, ", ")
+    show(io, t.feedforward.layer)
+    print(io, ", ")
+    show(io, t.feedforward.norm)
+    print(io, ')')
 end
 function Base.show(io::IO, t::PostNormTransformerBlock)
     print(io, "PostNormTransformerBlock(")
-    show(io, t.attention.layer); print(io, ", "); show(io, t.attention.norm); print(io, ", ")
-    show(io, t.feedforward.layer); print(io, ", "); show(io, t.feedforward.norm); print(io, ')')
+    show(io, t.attention.layer)
+    print(io, ", ")
+    show(io, t.attention.norm)
+    print(io, ", ")
+    show(io, t.feedforward.layer)
+    print(io, ", ")
+    show(io, t.feedforward.norm)
+    print(io, ')')
 end
 function Base.show(io::IO, t::PreNormTransformerDecoderBlock)
     print(io, "PreNormTransformerDecoderBlock(")
-    show(io, t.attention.layer); print(io, ", "); show(io, t.attention.norm); print(io, ", ");
-    show(io, t.crossattention.layer); print(io, ", "); show(io, t.crossattention.norm); print(io, ", ");
-    show(io, t.feedforward.layer); print(io, ", "); show(io, t.feedforward.norm); print(io, ')')
+    show(io, t.attention.layer)
+    print(io, ", ")
+    show(io, t.attention.norm)
+    print(io, ", ")
+    show(io, t.crossattention.layer)
+    print(io, ", ")
+    show(io, t.crossattention.norm)
+    print(io, ", ")
+    show(io, t.feedforward.layer)
+    print(io, ", ")
+    show(io, t.feedforward.norm)
+    print(io, ')')
 end
 function Base.show(io::IO, t::PostNormTransformerDecoderBlock)
     print(io, "PostNormTransformerDecoderBlock(")
-    show(io, t.attention.layer); print(io, ", "); show(io, t.attention.norm); print(io, ", ");
-    show(io, t.crossattention.layer); print(io, ", "); show(io, t.crossattention.norm); print(io, ", ");
-    show(io, t.feedforward.layer); print(io, ", "); show(io, t.feedforward.norm); print(io, ')')
+    show(io, t.attention.layer)
+    print(io, ", ")
+    show(io, t.attention.norm)
+    print(io, ", ")
+    show(io, t.crossattention.layer)
+    print(io, ", ")
+    show(io, t.crossattention.norm)
+    print(io, ", ")
+    show(io, t.feedforward.layer)
+    print(io, ", ")
+    show(io, t.feedforward.norm)
+    print(io, ')')
 end
 _show_name(t::PreNormTransformerBlock) = "PreNormTransformerBlock"
 _show_name(t::PostNormTransformerBlock) = "PostNormTransformerBlock"
 _show_name(t::PreNormTransformerDecoderBlock) = "PreNormTransformerDecoderBlock"
 _show_name(t::PostNormTransformerDecoderBlock) = "PostNormTransformerDecoderBlock"
 
-Flux._show_children(t::PreNormTransformerBlock) = (t.attention.layer, t.attention.norm, t.feedforward.layer, t.feedforward.norm)
-Flux._show_children(t::PostNormTransformerBlock) = (t.attention.layer, t.attention.norm, t.feedforward.layer, t.feedforward.norm)
-Flux._show_children(t::PreNormTransformerDecoderBlock) = (t.attention.layer, t.attention.norm, t.crossattention.layer, t.crossattention.norm, t.feedforward.layer, t.feedforward.norm)
-Flux._show_children(t::PostNormTransformerDecoderBlock) = (t.attention.layer, t.attention.norm, t.crossattention.layer, t.crossattention.norm, t.feedforward.layer, t.feedforward.norm)
+
 
 #############################################
 
-struct SelfAttention{A, QKV, O} <: LayerStruct
+struct SelfAttention{A,QKV,O} <: LayerStruct
     attention_op::A
     qkv_proj::QKV #::NSplit{StaticInt{3}, QKV}
     o_proj::O
 end
-@functor SelfAttention
+Flux.@layer SelfAttention
 
 function (sa::SelfAttention)(nt::NamedTuple)
     qkv = apply_on_namedtuple(sa.qkv_proj, nt)
@@ -150,13 +177,13 @@ function (sa::SelfAttention)(nt::NamedTuple)
     return y
 end
 
-struct CrossAttention{A, Q, KV, O} <: LayerStruct
+struct CrossAttention{A,Q,KV,O} <: LayerStruct
     attention_op::A
     q_proj::Q
     kv_proj::KV #::NSplit{StaticInt{2}, KV}
     o_proj::O
 end
-@functor CrossAttention
+Flux.@layer CrossAttention
 
 function argument_names(ca::CrossAttention)
     required_names = (:hidden_state, :memory)
@@ -168,14 +195,14 @@ end
 function _apply_cross_attention_op(op, q::NamedTuple, kv::NamedTuple, cross_attention_mask)
     k_v = kv.hidden_state
     ChainRulesCore.ignore_derivatives() do
-        k_v isa NTuple{2, Any} ||
+        k_v isa NTuple{2,Any} ||
             error("Expect kv_proj(memory).hidden_state return a tuple of 2 arrays, but get $(typeof(kv.hidden_state)).")
         nothing
     end
     k, v = k_v
     qkv = merge(kv, q, (
-        hidden_state = (q.hidden_state, k, v),
-        attention_mask = cross_attention_mask,
+        hidden_state=(q.hidden_state, k, v),
+        attention_mask=cross_attention_mask,
     ))
     a = apply_on_namedtuple(op, Base.structdiff(qkv, NamedTuple{(:attention_score,)}))
     return a
@@ -183,27 +210,27 @@ end
 
 function (ca::CrossAttention)(nt::NamedTuple)
     hidden_state, memory = nt.hidden_state, nt.memory
-    cross_attention_mask = ChainRulesCore.ignore_derivatives(()->get(nt, :cross_attention_mask, nothing))
+    cross_attention_mask = ChainRulesCore.ignore_derivatives(() -> get(nt, :cross_attention_mask, nothing))
     nt_ext = Base.structdiff(nt, NamedTuple{(:hidden_state, :memory, :attention_mask, :cross_attention_mask)})
     q = with_extra(ca.q_proj, hidden_state, nt_ext)
     kv = with_extra(ca.kv_proj, memory, nt_ext)
     _a = _apply_cross_attention_op(ca.attention_op, q, kv, cross_attention_mask)
     a = rename(Base.structdiff(_a, NamedTuple{(:attention_mask, :cross_attention_mask)}),
-               Val(:attention_score), Val(:cross_attention_score))
+        Val(:attention_score), Val(:cross_attention_score))
     y = apply_on_namedtuple(ca.o_proj, a)
     return merge(nt, y)
 end
 
 #############################################
 
-struct Transformer{T <: Tuple{Vararg{AbstractTransformerBlock}}, F} <: LayerStruct
+struct Transformer{T<:Tuple{Vararg{AbstractTransformerBlock}},F} <: LayerStruct
     blocks::T
     f::F
 end
 Transformer(blocks::Tuple{Vararg{AbstractTransformerBlock}}) = Transformer(blocks, nothing)
 Transformer(blocks::AbstractTransformerBlock...) = Transformer(blocks)
 
-@functor Transformer
+Flux.@layer Transformer
 
 (t::Transformer)(nt::NamedTuple) = applyblocks(t.blocks, t.f, nt)
 
@@ -216,17 +243,17 @@ function _block_call(symbols, i, has_f)
     return line
 end
 
-function applyblocks(blocks::Tuple{Vararg{AbstractTransformerBlock, N}}, f, x) where N
+function applyblocks(blocks::Tuple{Vararg{AbstractTransformerBlock,N}}, f, x) where N
     if @generated
         symbols = vcat(:x, [gensym() for _ in 1:N])
         has_f = !(f <: Nothing)
-        calls = [ _block_call(symbols, i, has_f) for i in 1:N ]
+        calls = [_block_call(symbols, i, has_f) for i in 1:N]
         return Expr(:block, calls...)
     else
         if isnothing(f)
-            return foldl((y, blk)-> blk(y), blocks; init=x)
+            return foldl((y, blk) -> blk(y), blocks; init=x)
         else
-            return foldl((y, blk)-> f(y, blk(y)), blocks; init=x)
+            return foldl((y, blk) -> f(y, blk(y)), blocks; init=x)
         end
     end
 end
@@ -240,10 +267,10 @@ Base.length(t::Transformer) = length(t.blocks)
 
 Create `n` layers of transformer blocks with `T(args...; kwargs...)`.
 """
-function Transformer(T::Type{<:AbstractTransformerBlock}, n::Int, args...; collect_outputs = false, kwargs...)
+function Transformer(T::Type{<:AbstractTransformerBlock}, n::Int, args...; collect_outputs=false, kwargs...)
     collect_f = collect_outputs isa Bool ?
-        (collect_outputs ? (@__MODULE__).collect_outputs : nothing) :
-        collect_outputs
+                (collect_outputs ? (@__MODULE__).collect_outputs : nothing) :
+                collect_outputs
     return Transformer(ntuple(i -> T(args...; kwargs...), n), collect_f)
 end
 
@@ -259,7 +286,7 @@ function Base.show(io::IO, t::Transformer)
         show(io, ts)
     end
 end
-function Flux._big_show(io::IO, t::Transformer, indent::Int = 0, name = nothing)
+function Flux._big_show(io::IO, t::Transformer, indent::Int=0, name=nothing)
     if t.blocks isa NTuple
         println(io, " "^indent, isnothing(name) ? "" : "$name = ", _show_name(t), "<$(length(t))>(")
         Flux._big_show(io, first(t.blocks), indent + 2)
@@ -281,13 +308,13 @@ end
 
 #############################################
 
-function collect_outputs(prev::NamedTuple{prev_names, types}, output::NamedTuple{names}) where {prev_names, types, names}
+function collect_outputs(prev::NamedTuple{prev_names,types}, output::NamedTuple{names}) where {prev_names,types,names}
     if @generated
         if iszero(sym_in(:outputs, names))
             return quote
                 new_output = Base.structdiff(output, prev)
-                outputs = (merge((hidden_state = output.hidden_state,), new_output),)
-                return merge(output, (outputs = outputs,))
+                outputs = (merge((hidden_state=output.hidden_state,), new_output),)
+                return merge(output, (outputs=outputs,))
             end
         else
             i = sym_in(:outputs, prev_names)
@@ -296,7 +323,7 @@ function collect_outputs(prev::NamedTuple{prev_names, types}, output::NamedTuple
                 prev_outputs = prev.outputs
                 new_output = NamedTuple{$name}(output)
                 outputs = (prev_outputs..., new_output)
-                return merge(output, (outputs = outputs,))
+                return merge(output, (outputs=outputs,))
             end
         end
     else
@@ -306,9 +333,9 @@ function collect_outputs(prev::NamedTuple{prev_names, types}, output::NamedTuple
             outputs = (prev_outputs..., new_output)
         else
             new_output = Base.structdiff(output, prev)
-            outputs = (merge((hidden_state = output.hidden_state,), new_output),)
+            outputs = (merge((hidden_state=output.hidden_state,), new_output),)
         end
-        return merge(output, (outputs = outputs,))
+        return merge(output, (outputs=outputs,))
     end
 end
 
@@ -320,14 +347,14 @@ end
 
 Create a multi-head self attention layer with `head` heads and `head_hidden_size` per head.
 """
-function SelfAttention(head::Int, hidden_size::Int; dropout = nothing, return_score = false, causal = false)
+function SelfAttention(head::Int, hidden_size::Int; dropout=nothing, return_score=false, causal=false)
     @assert rem(hidden_size, head) == 0 "`hidden_size` should be dividible by `head` if `head_hidden_size` is not set"
     head_hidden_size = div(hidden_size, head)
     return SelfAttention(head, hidden_size, head_hidden_size; dropout, return_score, causal)
 end
 function SelfAttention(
     head::Int, hidden_size::Int, head_hidden_size::Int;
-    dropout = nothing, return_score = false, causal = false,
+    dropout=nothing, return_score=false, causal=false,
 )
     atten_op_constr = causal ? CausalMultiheadQKVAttenOp : MultiheadQKVAttenOp
     atten_op = atten_op_constr(head, dropout)
@@ -354,12 +381,12 @@ end
 
 Create a multi-head cross attention layer with `head` heads and `head_hidden_size` per head.
 """
-function CrossAttention(head::Int, hidden_size::Int; dropout = nothing, return_score = false)
+function CrossAttention(head::Int, hidden_size::Int; dropout=nothing, return_score=false)
     @assert rem(hidden_size, head) == 0 "`hidden_size` should be dividible by `head` if `head_hidden_size` is not set"
     head_hidden_size = div(hidden_size, head)
     return CrossAttention(head, hidden_size, head_hidden_size; dropout, return_score)
 end
-function CrossAttention(head::Int, hidden_size::Int, head_hidden_size::Int; dropout = nothing, return_score = false)
+function CrossAttention(head::Int, hidden_size::Int, head_hidden_size::Int; dropout=nothing, return_score=false)
     cross_atten_op = MultiheadQKVAttenOp(head, dropout)
     return_score && (cross_atten_op = NeuralAttentionlib.WithScore(cross_atten_op))
     ca = CrossAttention(cross_atten_op, head, hidden_size, head_hidden_size)
@@ -391,13 +418,13 @@ Create a post-LN transformer encoder block. `head`, `hidden_size` (and `head_hid
 """
 TransformerBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 ) = TransformerBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size; attention_dropout, dropout, return_score)
 
 TransformerBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 ) = PostNormTransformerBlock(
     act, head, hidden_size, head_hidden_size, intermediate_size; attention_dropout, dropout, return_score)
 
@@ -411,15 +438,15 @@ Create a post-LN transformer encoder block. `head`, `hidden_size` (and `head_hid
 """
 PostNormTransformerBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 ) = PostNormTransformerBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size; attention_dropout, dropout, return_score)
 
 function PostNormTransformerBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 )
-    sa = SelfAttention(head, hidden_size, head_hidden_size; dropout = attention_dropout, return_score)
+    sa = SelfAttention(head, hidden_size, head_hidden_size; dropout=attention_dropout, return_score)
     ff1 = Dense(act, hidden_size, intermediate_size)
     ff2 = Dense(intermediate_size, hidden_size)
     return TransformerBlock(
@@ -441,15 +468,15 @@ Create a pre-LN transformer encoder block. `head`, `hidden_size` (and `head_hidd
 """
 PreNormTransformerBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 ) = PreNormTransformerBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size; attention_dropout, dropout, return_score)
 
 function PreNormTransformerBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    attention_dropout = nothing, dropout = nothing, return_score = false,
+    attention_dropout=nothing, dropout=nothing, return_score=false,
 )
-    sa = SelfAttention(head, hidden_size, head_hidden_size; dropout = attention_dropout, return_score)
+    sa = SelfAttention(head, hidden_size, head_hidden_size; dropout=attention_dropout, return_score)
     ff1 = Dense(act, hidden_size, intermediate_size)
     ff2 = Dense(intermediate_size, hidden_size)
     return TransformerBlock(
@@ -474,8 +501,8 @@ Create a post-LN transformer decoder block. `head`, `hidden_size` (and `head_hid
 """
 TransformerDecoderBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 ) = TransformerDecoderBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size;
     dropout, attention_dropout, cross_attention_dropout, return_score, return_self_attention_score
@@ -483,8 +510,8 @@ TransformerDecoderBlock(
 
 TransformerDecoderBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 ) = PostNormTransformerDecoderBlock(
     act, head, hidden_size, head_hidden_size, intermediate_size;
     dropout, attention_dropout, cross_attention_dropout, return_score, return_self_attention_score
@@ -501,8 +528,8 @@ Create a post-LN transformer decoder block. `head`, `hidden_size` (and `head_hid
 """
 PostNormTransformerDecoderBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 ) = PostNormTransformerDecoderBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size;
     dropout, attention_dropout, cross_attention_dropout, return_score, return_self_attention_score
@@ -510,12 +537,12 @@ PostNormTransformerDecoderBlock(
 
 function PostNormTransformerDecoderBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 )
     sa = SelfAttention(head, hidden_size, head_hidden_size;
-                       dropout = attention_dropout, causal = true, return_score = return_self_attention_score)
-    ca = CrossAttention(head, hidden_size, head_hidden_size; dropout = cross_attention_dropout, return_score)
+        dropout=attention_dropout, causal=true, return_score=return_self_attention_score)
+    ca = CrossAttention(head, hidden_size, head_hidden_size; dropout=cross_attention_dropout, return_score)
     ff1 = Dense(act, hidden_size, intermediate_size)
     ff2 = Dense(intermediate_size, hidden_size)
     return TransformerDecoderBlock(
@@ -541,8 +568,8 @@ Create a pre-LN transformer decoder block. `head`, `hidden_size` (and `head_hidd
 """
 PreNormTransformerDecoderBlock(
     head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 ) = PreNormTransformerDecoderBlock(
     gelu, head, hidden_size, head_hidden_size, intermediate_size;
     dropout, attention_dropout, cross_attention_dropout, return_score, return_self_attention_score
@@ -550,12 +577,12 @@ PreNormTransformerDecoderBlock(
 
 function PreNormTransformerDecoderBlock(
     act, head::Int, hidden_size::Int, head_hidden_size::Int, intermediate_size::Int;
-    dropout = nothing, attention_dropout = nothing, cross_attention_dropout = nothing,
-    return_score = false, return_self_attention_score = false,
+    dropout=nothing, attention_dropout=nothing, cross_attention_dropout=nothing,
+    return_score=false, return_self_attention_score=false,
 )
     sa = SelfAttention(head, hidden_size, head_hidden_size;
-                       dropout = attention_dropout, causal = true, return_score = return_self_attention_score)
-    ca = CrossAttention(head, hidden_size, head_hidden_size; dropout = cross_attention_dropout, return_score)
+        dropout=attention_dropout, causal=true, return_score=return_self_attention_score)
+    ca = CrossAttention(head, hidden_size, head_hidden_size; dropout=cross_attention_dropout, return_score)
     ff1 = Dense(act, hidden_size, intermediate_size)
     ff2 = Dense(intermediate_size, hidden_size)
     return TransformerDecoderBlock(
@@ -572,28 +599,28 @@ end
 
 #############################################
 
-struct Seq2Seq{E, D} <: LayerStruct
+struct Seq2Seq{E,D} <: LayerStruct
     encoder::E
     decoder::D
 end
-@functor Seq2Seq
+Flux.@layer Seq2Seq
 
 argument_names(::Seq2Seq) = (:encoder_input, :decoder_input)
 
 function (seq2seq::Seq2Seq)(nt::NamedTuple)
     enc = apply_on_namedtuple(seq2seq.encoder, nt.encoder_input)
-    dec = apply_on_namedtuple(seq2seq.decoder, merge(nt.decoder_input, (memory = enc.hidden_state,)))
+    dec = apply_on_namedtuple(seq2seq.decoder, merge(nt.decoder_input, (memory=enc.hidden_state,)))
     hidden_state = dec.hidden_state
     return merge(Base.structdiff(nt, NamedTuple{(:encoder_input, :decoder_input)}),
-                 (hidden_state = hidden_state, encoder_output = enc, decoder_output = dec))
+        (hidden_state=hidden_state, encoder_output=enc, decoder_output=dec))
 end
 
 #############################################
 
-struct CompositeEmbedding{T<:Tuple}  <: LayerStruct
+struct CompositeEmbedding{T<:Tuple} <: LayerStruct
     embeds::T
 end
-Functors.functor(::Type{<:CompositeEmbedding}, x) = ((embeds = getfield(x, :embeds),), y -> CompositeEmbedding(y.embeds))
+Functors.functor(::Type{<:CompositeEmbedding}, x) = ((embeds=getfield(x, :embeds),), y -> CompositeEmbedding(y.embeds))
 
 argument_names(ce::CompositeEmbedding) = remove_name(argument_names(getfield(ce, :embeds)), :hidden_state)
 
@@ -611,7 +638,7 @@ function CompositeEmbedding(; kwargs...)
             if !(embed isa Tuple)
                 embed = (embed,)
             end
-            push!(embeds, WithOptArg{(:hidden_state,), (name,)}(ApplyEmbed(embed...)))
+            push!(embeds, WithOptArg{(:hidden_state,),(name,)}(ApplyEmbed(embed...)))
         end
     end
     return CompositeEmbedding(Tuple(embeds))
@@ -622,7 +649,7 @@ function (ce::CompositeEmbedding)(nt::NamedTuple)
         N = length(ce.parameters[1].parameters)
         symbols = [gensym() for _ in 1:N]
         pushfirst!(symbols, :nt)
-        calls = [ :($(symbols[i+1]) = apply_on_namedtuple(ce[$i], $(symbols[i]))) for i in 1:N ]
+        calls = [:($(symbols[i+1]) = apply_on_namedtuple(ce[$i], $(symbols[i]))) for i in 1:N]
         return Expr(:block, calls...)
     else
         applylayers(getfield(ce, :embeds), nt)
@@ -657,7 +684,7 @@ function Base.show(io::IO, ce::CompositeEmbedding)
     end
     print(io, ')')
 end
-function Flux._big_show(io::IO, ce::CompositeEmbedding, indent::Int = 0, name = nothing)
+function Flux._big_show(io::IO, ce::CompositeEmbedding, indent::Int=0, name=nothing)
     println(io, " "^indent, isnothing(name) ? "" : "$name = ", _show_name(ce), '(')
     for ename in propertynames(ce)
         c = getproperty(ce, ename)
@@ -673,14 +700,4 @@ end
 
 #############################################
 
-for T in :[
-    DropoutLayer, SelfAttention, CrossAttention,
-    PostNormResidual, PreNormResidual, TransformerBlock, TransformerDecoderBlock,
-    Transformer, Seq2Seq, CompositeEmbedding,
-].args
-    if T == :CompositeEmbedding || T == :Transformer || T == :DropoutLayer
-        @eval @fluxshow $T false
-    else
-        @eval @fluxshow $T
-    end
-end
+@fluxshow CompositeEmbedding false
