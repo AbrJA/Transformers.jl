@@ -106,12 +106,12 @@ function load_model(_type::Type{<:HGFPhiPreTrainedModel}, ::Type{<:SelfAttention
     return SelfAttention(op, qkv_proj, o_proj)
 end
 
-function load_model(::Type{<:HGFPhiPreTrainedModel}, ::Type{<:Layers.LayerNorm}, cfg, state_dict, prefix)
+function load_model(::Type{<:HGFPhiPreTrainedModel}, ::Type{<:TransformerLayers.LayerNorm}, cfg, state_dict, prefix)
     dims = cfg[:hidden_size]
     ln_ϵ = Float32(cfg[:layer_norm_eps])
     ln_weight = getweight(one_init(dims), Array, state_dict, joinname(prefix, "weight"))
     ln_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "bias"))
-    return Layers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
+    return TransformerLayers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
 end
 
 function load_model(_type::Type{<:HGFPhiPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -122,18 +122,18 @@ function load_model(_type::Type{<:HGFPhiPreTrainedModel}, ::Type{<:TransformerBl
     blocks = []
     for i = 1:n
         lprefix = joinname(prefix, :layers, i - 1)
-        ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "input_layernorm"))
+        ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "input_layernorm"))
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "self_attn"))
-        sa = Layers.DropoutLayer(sa, p)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
-        ff = Layers.DropoutLayer(ff, p)
+        sa = TransformerLayers.DropoutLayer(sa, p)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff = TransformerLayers.DropoutLayer(ff, p)
         block = ParallelPreNormTransformerBlock(sa, ff, ln)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "final_layernorm"))
-    return Layers.Chain(trf, final_ln)
+    final_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "final_layernorm"))
+    return TransformerLayers.Chain(trf, final_ln)
 end
 
 
@@ -157,7 +157,7 @@ end
 
 function get_state_dict(p::Type{<:HGFPhiPreTrainedModel}, m::SelfAttention, state_dict, prefix)
     q, k, v = m.qkv_proj.layers
-    if q isa Layers.Chain
+    if q isa TransformerLayers.Chain
         get_state_dict(p, q[1], state_dict, joinname(prefix, "q_proj"))
         get_state_dict(p, k[1], state_dict, joinname(prefix, "k_proj"))
         get_state_dict(p, q[2], state_dict, joinname(prefix, "q_layernorm"))
@@ -171,7 +171,7 @@ function get_state_dict(p::Type{<:HGFPhiPreTrainedModel}, m::SelfAttention, stat
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFPhiPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+function get_state_dict(p::Type{<:HGFPhiPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "fc1"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "fc2"))

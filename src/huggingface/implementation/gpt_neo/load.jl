@@ -101,7 +101,7 @@ function load_model(
     wo_weight = getweight(weight_init(ff_dims, dims, factor), Array,
         state_dict, joinname(prefix, "c_proj.weight"))
     wo_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "c_proj.bias"))
-    return Layers.Chain(Layers.Dense(act, wi_weight, wi_bias), Layers.Dense(wo_weight, wo_bias))
+    return TransformerLayers.Chain(TransformerLayers.Dense(act, wi_weight, wi_bias), TransformerLayers.Dense(wo_weight, wo_bias))
 end
 
 function load_model(_type::Type{<:HGFGPTNeoPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -118,18 +118,18 @@ function load_model(_type::Type{<:HGFGPTNeoPreTrainedModel}, ::Type{<:Transforme
                   CausalMultiheadQKVDotAttenOp : op_str == "local" ?
                   LocalCausalMultiheadQKVDotAttenOp : error("unknown attention type: $op_str")
         sa = load_model(_type, SelfAttention{op_type}, cfg, state_dict, joinname(lprefix, "attn.attention"))
-        sa_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
-        sa = Layers.PreNormResidual(Layers.DropoutLayer(sa, p), sa_ln)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
-        ff_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_2"))
-        ff = Layers.PreNormResidual(Layers.DropoutLayer(ff, p), ff_ln)
+        sa_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
+        sa = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(sa, p), sa_ln)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_2"))
+        ff = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(ff, p), ff_ln)
         block = TransformerBlock(sa, ff)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
-    return Layers.Chain(trf, final_ln)
+    final_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
+    return TransformerLayers.Chain(trf, final_ln)
 end
 
 function get_state_dict(m::HGFGPTNeoModel, state_dict, prefix)
@@ -159,7 +159,7 @@ function get_state_dict(p::Type{<:HGFGPTNeoPreTrainedModel}, m::SelfAttention, s
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFGPTNeoPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+function get_state_dict(p::Type{<:HGFGPTNeoPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "c_fc"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "c_proj"))

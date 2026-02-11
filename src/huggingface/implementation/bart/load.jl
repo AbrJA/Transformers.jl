@@ -204,7 +204,7 @@ function get_state_dict(p::Type{<:HGFBartPreTrainedModel}, m::Transformer, state
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFBartPreTrainedModel}, m::Layers.Chain{<:Tuple{Any,Layers.Dense}},
+function get_state_dict(p::Type{<:HGFBartPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{Any,TransformerLayers.Dense}},
     state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "fc1"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "fc2"))

@@ -4,11 +4,11 @@ using FuncPipelines
 using TextEncodeBase
 using TextEncodeBase: trunc_and_pad, trunc_or_pad, nested2batch, nestedcall
 using ValSplit
-using BangBang
+using ValSplit
 
 load_tokenizer_config(model_name; kw...) = JSON3.read(read(hgf_tokenizer_config(model_name; kw...)))
 
-function load_tokenizer(model_name; possible_files = nothing, config = nothing, kw...)
+function load_tokenizer(model_name; possible_files=nothing, config=nothing, kw...)
     possible_files = ensure_possible_files(possible_files, model_name; kw...)
 
     if TOKENIZER_CONFIG_FILE in possible_files
@@ -34,8 +34,8 @@ function load_tokenizer(model_name; possible_files = nothing, config = nothing, 
 end
 
 function load_tokenizer(
-    tkr_type, model_name; force_fast_tkr = false, possible_files = nothing,
-    config = nothing, tkr_config = nothing,
+    tkr_type, model_name; force_fast_tkr=false, possible_files=nothing,
+    config=nothing, tkr_config=nothing,
     kw...
 )
     T = tokenizer_type(tkr_type)
@@ -45,7 +45,7 @@ function load_tokenizer(
     isnothing(tkr_config) && TOKENIZER_CONFIG_FILE in possible_files &&
         (tkr_config = load_tokenizer_config(model_name; kw...))
     special_tokens = SPECIAL_TOKENS_MAP_FILE in possible_files ?
-        load_special_tokens_map(hgf_tokenizer_special_tokens_map(model_name; kw...)) : nothing
+                     load_special_tokens_map(hgf_tokenizer_special_tokens_map(model_name; kw...)) : nothing
     tkr_config = isnothing(tkr_config) ? (;) : tkr_config
     kwargs = extract_fast_tkr_kwargs(T, tkr_config, config, special_tokens)
 
@@ -57,9 +57,9 @@ function load_tokenizer(
         slow_tkr_kwargs = extract_slow_tkr_kwargs(T, tkr_config, config, special_tokens)
         slow_files = slow_tkr_files(T)
         @assert all(Base.Fix2(in, possible_files), slow_files) "Cannot not find $slow_files or $FULL_TOKENIZER_FILE in $model_name repo"
-        slow_files = map(file->hgf_file(model_name, file; kw...), slow_files)
+        slow_files = map(file -> hgf_file(model_name, file; kw...), slow_files)
         added_tokens_file = ADDED_TOKENS_FILE in possible_files ?
-            hgf_tokenizer_added_token(model_name; kw...) : nothing
+                            hgf_tokenizer_added_token(model_name; kw...) : nothing
         decode = identity
         textprocess = TextEncodeBase.join_text
         tokenizer, vocab, process_config = load_slow_tokenizer(
@@ -71,7 +71,17 @@ function load_tokenizer(
     end
 
     tkr = encoder_construct(T, tokenizer, vocab; kwargs...)
-    return setproperties!!(tkr, (; decode, textprocess))
+    args = ntuple(fieldcount(typeof(tkr))) do i
+        f = fieldname(typeof(tkr), i)
+        if f === :decode
+            return decode
+        elseif f === :textprocess
+            return textprocess
+        else
+            return getfield(tkr, f)
+        end
+    end
+    return typeof(tkr)(args...)
 end
 
 tokenizer_type(type::Val) = type
@@ -83,10 +93,10 @@ extract_fast_tkr_kwargs(_type::Val{type}, config, special_tokens; tkr_cfg...) wh
     extract_fast_tkr_kwargs(type, config, special_tokens; tkr_cfg...)
 function extract_fast_tkr_kwargs(type::Symbol, config, special_tokens; tkr_cfg...)
     @debug "No extract_fast_tkr_kwargs handler registed for $type, using heuristic"
-    vals = valarg_params(extract_fast_tkr_kwargs, Tuple{Val, Any, Any}, 1, Symbol)
+    vals = valarg_params(extract_fast_tkr_kwargs, Tuple{Val,Any,Any}, 1, Symbol)
     default_f = () -> heuristic_extract_fast_tkr_kwargs(config, tkr_cfg, special_tokens)
     return ValSplit._valswitch(Val(vals), Val(3), Core.kwfunc(extract_fast_tkr_kwargs), default_f,
-                               tkr_cfg, extract_fast_tkr_kwargs, type, config, special_tokens)
+        tkr_cfg, extract_fast_tkr_kwargs, type, config, special_tokens)
 end
 
 extract_slow_tkr_kwargs(type, tkr_cfg, config, special_tokens) =
@@ -95,10 +105,10 @@ extract_slow_tkr_kwargs(_type::Val{type}, config, special_tokens; tkr_cfg...) wh
     extract_slow_tkr_kwargs(type, config, special_tokens; tkr_cfg...)
 function extract_slow_tkr_kwargs(type::Symbol, config, special_tokens; tkr_cfg...)
     @debug "No extract_slow_tkr_kwargs handler registed for $type, using heuristic"
-    vals = valarg_params(extract_slow_tkr_kwargs, Tuple{Val, Any, Any}, 1, Symbol)
+    vals = valarg_params(extract_slow_tkr_kwargs, Tuple{Val,Any,Any}, 1, Symbol)
     default_f = () -> heuristic_extract_slow_tkr_kwargs(config, tkr_cfg, special_tokens)
     return ValSplit._valswitch(Val(vals), Val(3), Core.kwfunc(extract_slow_tkr_kwargs), default_f,
-                               tkr_cfg, extract_slow_tkr_kwargs, type, config, special_tokens)
+        tkr_cfg, extract_slow_tkr_kwargs, type, config, special_tokens)
 end
 
 @valsplit slow_tkr_files(Val(type::Symbol)) = error("Don't know what files are need to load slow $type tokenizer.")
@@ -107,10 +117,10 @@ encoder_construct(_type::Val{type}, tokenizer, vocab; kwargs...) where type =
     encoder_construct(type, tokenizer, vocab; kwargs...)
 function encoder_construct(type::Symbol, tokenizer, vocab; kwargs...)
     @debug "No encoder_construct handdler registed for $type, using default"
-    vals = valarg_params(encoder_construct, Tuple{Val, Any, Any}, 1, Symbol)
+    vals = valarg_params(encoder_construct, Tuple{Val,Any,Any}, 1, Symbol)
     default_f = () -> heuristic_encoder_construct(tokenizer, vocab, kwargs)
     return ValSplit._valswitch(Val(vals), Val(3), Core.kwfunc(encoder_construct), default_f,
-                               kwargs, encoder_construct, type, tokenizer, vocab)
+        kwargs, encoder_construct, type, tokenizer, vocab)
 end
 
 include("utils.jl")

@@ -1,4 +1,4 @@
-using ..Transformers: lasttoken, firsttoken
+using ..TransformerLayers: lasttoken, firsttoken
 using ..TransformerLayers
 using ChainRulesCore
 using Flux

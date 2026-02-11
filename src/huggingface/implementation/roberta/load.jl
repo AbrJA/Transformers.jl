@@ -99,11 +99,11 @@ function load_model(_type::Type{HGFRobertaForSequenceClassification}, cfg, state
     proj_weight = getweight(weight_init(dims, nlabel, factor), Array,
                             state_dict, joinname(prefix, "classifier.out_proj.weight"))
     proj_bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.out_proj.bias"))
-    head = Layers.Chain(
-        Layers.DropoutLayer(FirstTokenPooler(), p),
-        Layers.DropoutLayer(Layers.Dense(NNlib.tanh_fast, dense_weight, dense_bias), p),
-        Layers.Dense(proj_weight, proj_bias))
-    cls = Layers.Branch{(:logit,), (:hidden_state,)}(head)
+    head = TransformerLayers.Chain(
+        TransformerLayers.DropoutLayer(FirstTokenPooler(), p),
+        TransformerLayers.DropoutLayer(TransformerLayers.Dense(NNlib.tanh_fast, dense_weight, dense_bias), p),
+        TransformerLayers.Dense(proj_weight, proj_bias))
+    cls = TransformerLayers.Branch{(:logit,), (:hidden_state,)}(head)
     return HGFRobertaForSequenceClassification(model, cls)
 end
 
@@ -114,8 +114,8 @@ function load_model(_type::Type{HGFRobertaForTokenClassification}, cfg, state_di
     p = cfg[:classifier_dropout]
     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "classifier.weight"))
     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "classifier.bias"))
-    head = Layers.Chain(Layers.DropoutLayer(identity, p), Layers.Dense(weight, bias))
-    cls = Layers.Branch{(:logit,), (:hidden_state,)}(head)
+    head = TransformerLayers.Chain(TransformerLayers.DropoutLayer(identity, p), TransformerLayers.Dense(weight, bias))
+    cls = TransformerLayers.Branch{(:logit,), (:hidden_state,)}(head)
     return HGFRobertaForTokenClassification(model, cls)
 end
 
@@ -125,7 +125,7 @@ function load_model(_type::Type{HGFRobertaForQuestionAnswering}, cfg, state_dict
     factor = Float32(cfg[:initializer_range])
     weight = getweight(weight_init(dims, nlabel, factor), Array, state_dict, joinname(prefix, "qa_outputs.weight"))
     bias = getweight(zero_init(nlabel), Array, state_dict, joinname(prefix, "qa_outputs.bias"))
-    cls = BertQA(Layers.Dense(weight, bias))
+    cls = BertQA(TransformerLayers.Dense(weight, bias))
     return HGFRobertaForQuestionAnswering(model, cls)
 end
 

@@ -144,7 +144,7 @@ function Base.show(io::IO, op::T5RPEMultiheadQKVAttenOp)
           ", p = ", op.p, ')')
 end
 
-Layers.set_dropout(op::T5RPEMultiheadQKVAttenOp, p) =
+TransformerLayers.set_dropout(op::T5RPEMultiheadQKVAttenOp, p) =
     T5RPEMultiheadQKVAttenOp(op.head, op.n_bucket, op.max_distance, op.position_embedding, p)
 
 const T5RPEMultiheadQKVAttenOpWithScore{F, E} = WithScore{T5RPEMultiheadQKVAttenOp{F, E}}
@@ -177,7 +177,7 @@ function Base.show(io::IO, op::T5RPECausalMultiheadQKVAttenOp)
           ", p = ", op.p, ')')
 end
 
-Layers.set_dropout(op::T5RPECausalMultiheadQKVAttenOp, p) =
+TransformerLayers.set_dropout(op::T5RPECausalMultiheadQKVAttenOp, p) =
     T5RPECausalMultiheadQKVAttenOp(op.head, op.n_bucket, op.max_distance, op.position_embedding, p)
 
 const T5RPECausalMultiheadQKVAttenOpWithScore{F, E} = WithScore{T5RPECausalMultiheadQKVAttenOp{F, E}}
@@ -196,7 +196,7 @@ NeuralAttentionlib.get_attention_func(::T5BiasedMultiheadQKVAttenOp) = t5_multih
 NeuralAttentionlib.get_attention_func_args(op::T5BiasedMultiheadQKVAttenOp, q, k, v, bias, mask = nothing) =
     (op.head, q, k, v, bias, NeuralAttentionlib.BatchedMask(mask), op.p)
 
-Layers.set_dropout(op::T5BiasedMultiheadQKVAttenOp, p) = T5BiasedMultiheadQKVAttenOp(op.head, p)
+TransformerLayers.set_dropout(op::T5BiasedMultiheadQKVAttenOp, p) = T5BiasedMultiheadQKVAttenOp(op.head, p)
 
 const T5BiasedMultiheadQKVAttenOpWithScore{F} = WithScore{T5BiasedMultiheadQKVAttenOp{F}}
 
@@ -209,7 +209,7 @@ NeuralAttentionlib.get_attention_func(::T5BiasedCausalMultiheadQKVAttenOp) = t5_
 NeuralAttentionlib.get_attention_func_args(op::T5BiasedCausalMultiheadQKVAttenOp, q, k, v, bias, mask = nothing) =
     (op.head, q, k, v, bias, NeuralAttentionlib.BatchedMask(mask & NeuralAttentionlib.CausalMask()), op.p)
 
-Layers.set_dropout(op::T5BiasedCausalMultiheadQKVAttenOp, p) = T5BiasedCausalMultiheadQKVAttenOp(op.head, p)
+TransformerLayers.set_dropout(op::T5BiasedCausalMultiheadQKVAttenOp, p) = T5BiasedCausalMultiheadQKVAttenOp(op.head, p)
 
 const T5BiasedCausalMultiheadQKVAttenOpWithScore{F} = WithScore{T5BiasedCausalMultiheadQKVAttenOp{F}}
 
@@ -222,30 +222,30 @@ NeuralAttentionlib.get_attention_func(::T5MultiheadQKVAttenOp) = t5_multihead_qk
 NeuralAttentionlib.get_attention_func_args(op::T5MultiheadQKVAttenOp, q, k, v, mask = nothing) =
     (op.head, q, k, v, nothing, NeuralAttentionlib.BatchedMask(mask), op.p)
 
-Layers.set_dropout(op::T5MultiheadQKVAttenOp, p) = T5MultiheadQKVAttenOp(op.head, p)
+TransformerLayers.set_dropout(op::T5MultiheadQKVAttenOp, p) = T5MultiheadQKVAttenOp(op.head, p)
 
 const T5MultiheadQKVAttenOpWithScore{F} = WithScore{T5MultiheadQKVAttenOp{F}}
 
-Layers.argument_names(
+TransformerLayers.argument_names(
     ::Union{T5RPEMultiheadQKVAttenOpWithScore, T5RPEMultiheadQKVAttenOp,
             T5RPECausalMultiheadQKVAttenOpWithScore, T5RPECausalMultiheadQKVAttenOp,
             T5MultiheadQKVAttenOpWithScore, T5MultiheadQKVAttenOp}
 ) = (:hidden_state, :attention_mask)
-Layers.argument_names(
+TransformerLayers.argument_names(
     ::Union{T5BiasedMultiheadQKVAttenOpWithScore, T5BiasedMultiheadQKVAttenOp,
             T5BiasedCausalMultiheadQKVAttenOpWithScore, T5BiasedCausalMultiheadQKVAttenOp}
 ) = (:hidden_state, :attention_mask, :position_bias)
 
-function Layers.apply_on_namedtuple(
+function TransformerLayers.apply_on_namedtuple(
     op::Union{T5RPEMultiheadQKVAttenOpWithScore, T5RPEMultiheadQKVAttenOp,
               T5RPECausalMultiheadQKVAttenOpWithScore, T5RPECausalMultiheadQKVAttenOp,
               T5MultiheadQKVAttenOpWithScore, T5MultiheadQKVAttenOp},
     nt::NamedTuple
 )
-    return Layers.apply_attention_op(op, nt)
+    return TransformerLayers.apply_attention_op(op, nt)
 end
 
-function Layers.apply_on_namedtuple(
+function TransformerLayers.apply_on_namedtuple(
     op::Union{T5BiasedMultiheadQKVAttenOpWithScore, T5BiasedMultiheadQKVAttenOp,
               T5BiasedCausalMultiheadQKVAttenOpWithScore, T5BiasedCausalMultiheadQKVAttenOp},
     nt::NamedTuple
@@ -256,5 +256,5 @@ function Layers.apply_on_namedtuple(
     mask = get(nt, :attention_mask, nothing)
     bias = nt.position_bias
     a = op(qkv..., bias, mask)
-    return Layers.return_hidden_state(nt, a)
+    return TransformerLayers.return_hidden_state(nt, a)
 end

@@ -22,7 +22,7 @@ function (b::ParallelPreNormTransformerBlock)(nt::NamedTuple)
     return TransformerLayers.return_hidden_state(a, hidden_state)
 end
 
-@fluxshow ParallelPreNormTransformerBlock
+
 
 @hgfdef GPTJ (
     Model => (embed, decoder),
@@ -105,7 +105,7 @@ function load_model(
     wi_bias = getweight(zero_init(ff_dims), Array, state_dict, joinname(prefix, "fc_in.bias"))
     wo_weight = getweight(weight_init(ff_dims, dims, factor), Array, state_dict, joinname(prefix, "fc_out.weight"))
     wo_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "fc_out.bias"))
-    return Layers.Chain(Layers.Dense(act, wi_weight, wi_bias), Layers.Dense(wo_weight, wo_bias))
+    return TransformerLayers.Chain(TransformerLayers.Dense(act, wi_weight, wi_bias), TransformerLayers.Dense(wo_weight, wo_bias))
 end
 
 function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -116,18 +116,18 @@ function load_model(_type::Type{<:HGFGPTJPreTrainedModel}, ::Type{<:TransformerB
     blocks = []
     for i = 1:n
         lprefix = joinname(prefix, :h, i - 1)
-        ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
+        ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "attn"))
-        sa = Layers.DropoutLayer(sa, p)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
-        ff = Layers.DropoutLayer(ff, p)
+        sa = TransformerLayers.DropoutLayer(sa, p)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff = TransformerLayers.DropoutLayer(ff, p)
         block = ParallelPreNormTransformerBlock(sa, ff, ln)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
-    return Layers.Chain(trf, final_ln)
+    final_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
+    return TransformerLayers.Chain(trf, final_ln)
 end
 
 function get_state_dict(m::HGFGPTJModel, state_dict, prefix)
@@ -156,7 +156,7 @@ function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::SelfAttention, sta
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+function get_state_dict(p::Type{<:HGFGPTJPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "fc_in"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "fc_out"))

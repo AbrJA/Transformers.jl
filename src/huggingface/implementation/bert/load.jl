@@ -207,22 +207,22 @@ function load_model(_type::Type{<:HGFBertPreTrainedModel}, ::Type{<:CompositeEmb
     pe_type = cfg[:position_embedding_type]
     pe_type == "absolute" || load_error("Right now only absolute PE is supported in Bert.")
     factor = Float32(cfg[:initializer_range])
-    token_weight = getweight(Layers.Embed, state_dict, joinname(prefix, "word_embeddings.weight")) do
+    token_weight = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "word_embeddings.weight")) do
         weight = weight_init(vocab_size, dims, factor)()
         weight[:, pad_id+1] .= 0
         return weight
     end
-    pos_weight = getweight(weight_init(max_pos, dims, factor), Layers.Embed,
+    pos_weight = getweight(weight_init(max_pos, dims, factor), TransformerLayers.Embed,
         state_dict, joinname(prefix, "position_embeddings.weight"))
-    segment_weight = getweight(weight_init(max_pos, dims, factor), Layers.Embed,
+    segment_weight = getweight(weight_init(max_pos, dims, factor), TransformerLayers.Embed,
         state_dict, joinname(prefix, "token_type_embeddings.weight"))
     embed = CompositeEmbedding(
-        token=Layers.Embed(token_weight),
-        position=Layers.FixedLenPositionEmbed(pos_weight),
-        segment=(.+, Layers.Embed(segment_weight), bert_ones_like)
+        token=TransformerLayers.Embed(token_weight),
+        position=TransformerLayers.FixedLenPositionEmbed(pos_weight),
+        segment=(.+, TransformerLayers.Embed(segment_weight), bert_ones_like)
     )
-    ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "LayerNorm"))
-    return Layers.Chain(embed, Layers.DropoutLayer(ln, p))
+    ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "LayerNorm"))
+    return TransformerLayers.Chain(embed, TransformerLayers.DropoutLayer(ln, p))
 end
 
 function load_model(_type::Type{<:HGFBertPreTrainedModel}, ::Type{<:SelfAttention}, cfg, state_dict, prefix)
@@ -242,20 +242,20 @@ function load_model(_type::Type{<:HGFBertPreTrainedModel}, ::Type{<:SelfAttentio
     q_bias = getweight(b_init, Array, state_dict, joinname(prefix, "self.query.bias"))
     k_bias = getweight(b_init, Array, state_dict, joinname(prefix, "self.key.bias"))
     v_bias = getweight(b_init, Array, state_dict, joinname(prefix, "self.value.bias"))
-    qkv_proj = Layers.Fork(
-        Layers.Dense(q_weight, q_bias),
-        Layers.Dense(k_weight, k_bias),
-        Layers.Dense(v_weight, v_bias))
+    qkv_proj = TransformerLayers.Fork(
+        TransformerLayers.Dense(q_weight, q_bias),
+        TransformerLayers.Dense(k_weight, k_bias),
+        TransformerLayers.Dense(v_weight, v_bias))
     o_weight = getweight(w_init, Array, state_dict, joinname(prefix, "output.dense.weight"))
     o_bias = getweight(b_init, Array, state_dict, joinname(prefix, "output.dense.bias"))
-    o_proj = Layers.Dense(o_weight, o_bias)
+    o_proj = TransformerLayers.Dense(o_weight, o_bias)
     op = MultiheadQKVAttenOp(head, p)
     return_score && (op = WithScore(op))
     return SelfAttention(op, qkv_proj, o_proj)
 end
 
 function load_model(
-    _type::Type{<:HGFBertPreTrainedModel}, ::Type{<:Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}}},
+    _type::Type{<:HGFBertPreTrainedModel}, ::Type{<:TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}},
     cfg, state_dict, prefix
 )
     dims, ff_dims = cfg[:hidden_size], cfg[:intermediate_size]
@@ -269,7 +269,7 @@ function load_model(
     wo_weight = getweight(weight_init(ff_dims, dims, factor), Array,
         state_dict, joinname(prefix, "output.dense.weight"))
     wo_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "output.dense.bias"))
-    return Layers.Chain(Layers.Dense(act, wi_weight, wi_bias), Layers.Dense(wo_weight, wo_bias))
+    return TransformerLayers.Chain(TransformerLayers.Dense(act, wi_weight, wi_bias), TransformerLayers.Dense(wo_weight, wo_bias))
 end
 
 function load_model(_type::Type{<:HGFBertPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -282,15 +282,15 @@ function load_model(_type::Type{<:HGFBertPreTrainedModel}, ::Type{<:TransformerB
     for i = 1:n
         lprefix = joinname(prefix, :layer, i - 1)
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "attention"))
-        sa_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "attention.output.LayerNorm"))
-        sa = Layers.PostNormResidual(Layers.DropoutLayer(sa, p), sa_ln)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, lprefix)
-        ff_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "output.LayerNorm"))
-        ff = Layers.PostNormResidual(Layers.DropoutLayer(ff, p), ff_ln)
+        sa_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "attention.output.LayerNorm"))
+        sa = TransformerLayers.PostNormResidual(TransformerLayers.DropoutLayer(sa, p), sa_ln)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, lprefix)
+        ff_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "output.LayerNorm"))
+        ff = TransformerLayers.PostNormResidual(TransformerLayers.DropoutLayer(ff, p), ff_ln)
         block = TransformerBlock(sa, ff)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
     return trf
 end
@@ -342,7 +342,7 @@ function get_state_dict(m::HGFBertForQuestionAnswering, state_dict, prefix)
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFBertPreTrainedModel}, m::Layers.EmbedDecoder, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFBertPreTrainedModel}, m::TransformerLayers.EmbedDecoder, state_dict, prefix)
     get_state_dict(p, m.embed, state_dict, joinname(prefix, "decoder"))
     state_dict[joinname(prefix, "bias")] = m.bias
     return state_dict
@@ -364,7 +364,7 @@ function get_state_dict(p::Type{<:HGFBertPreTrainedModel}, m::SelfAttention, sta
 end
 
 function get_state_dict(
-    p::Type{<:HGFBertPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+    p::Type{<:HGFBertPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix
 )
     get_state_dict(p, m[1], state_dict, joinname(prefix, "intermediate.dense"))

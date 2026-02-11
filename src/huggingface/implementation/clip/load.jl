@@ -219,7 +219,7 @@ function get_state_dict(p::Type{<:HGFCLIPPreTrainedModel}, m::SelfAttention, sta
 end
 
 function get_state_dict(
-    p::Type{<:HGFCLIPPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+    p::Type{<:HGFCLIPPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix
 )
     get_state_dict(p, m[1], state_dict, joinname(prefix, "fc1"))

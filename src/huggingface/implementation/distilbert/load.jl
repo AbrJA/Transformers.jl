@@ -202,7 +202,7 @@ function load_model(
     wo_weight = getweight(weight_init(ff_dims, dims, factor), Array,
         state_dict, joinname(prefix, "ffn.lin2.weight"))
     wo_bias = getweight(zero_init(dims), Array, state_dict, joinname(prefix, "ffn.lin2.bias"))
-    return Layers.Chain(Layers.Dense(act, wi_weight, wi_bias), Layers.Dense(wo_weight, wo_bias))
+    return TransformerLayers.Chain(TransformerLayers.Dense(act, wi_weight, wi_bias), TransformerLayers.Dense(wo_weight, wo_bias))
 end
 
 function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:TransformerBlock}, cfg, state_dict, prefix)
@@ -215,15 +215,15 @@ function load_model(_type::Type{<:HGFDistilBertPreTrainedModel}, ::Type{<:Transf
     for i = 1:n
         lprefix = joinname(prefix, :layer, i - 1)
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "attention"))
-        sa_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "sa_layer_norm"))
-        sa = Layers.PostNormResidual(Layers.DropoutLayer(sa, p), sa_ln)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, lprefix)
-        ff_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "output_layer_norm"))
-        ff = Layers.PostNormResidual(Layers.DropoutLayer(ff, p), ff_ln)
+        sa_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "sa_layer_norm"))
+        sa = TransformerLayers.PostNormResidual(TransformerLayers.DropoutLayer(sa, p), sa_ln)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, lprefix)
+        ff_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "output_layer_norm"))
+        ff = TransformerLayers.PostNormResidual(TransformerLayers.DropoutLayer(ff, p), ff_ln)
         block = TransformerBlock(sa, ff)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
     return trf
 end
@@ -255,7 +255,7 @@ function get_state_dict(m::HGFDistilBertForQuestionAnswering, state_dict, prefix
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFDistilBertPreTrainedModel}, m::Layers.EmbedDecoder, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFDistilBertPreTrainedModel}, m::TransformerLayers.EmbedDecoder, state_dict, prefix)
     get_state_dict(p, m.embed, state_dict, joinname(prefix, "decoder"))
     state_dict[joinname(prefix, "bias")] = m.bias
     return state_dict
@@ -276,7 +276,7 @@ function get_state_dict(p::Type{<:HGFDistilBertPreTrainedModel}, m::SelfAttentio
 end
 
 function get_state_dict(
-    p::Type{<:HGFDistilBertPreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+    p::Type{<:HGFDistilBertPreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix
 )
     get_state_dict(p, m[1], state_dict, joinname(prefix, "lin1"))

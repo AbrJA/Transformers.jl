@@ -107,18 +107,18 @@ function load_model(_type::Type{<:HGFGPT2PreTrainedModel}, ::Type{<:TransformerB
     for i = 1:n
         lprefix = joinname(prefix, :h, i - 1)
         sa = load_model(_type, SelfAttention, cfg, state_dict, joinname(lprefix, "attn"))
-        sa_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
-        sa = Layers.PreNormResidual(Layers.DropoutLayer(sa, p), sa_ln)
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
-        ff_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_2"))
-        ff = Layers.PreNormResidual(Layers.DropoutLayer(ff, p), ff_ln)
+        sa_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_1"))
+        sa = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(sa, p), sa_ln)
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}}, cfg, state_dict, joinname(lprefix, "mlp"))
+        ff_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(lprefix, "ln_2"))
+        ff = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(ff, p), ff_ln)
         block = TransformerBlock(sa, ff)
         push!(blocks, block)
     end
-    collect_f = collect_output ? Layers.collect_outputs : nothing
+    collect_f = collect_output ? TransformerLayers.collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
-    return Layers.Chain(trf, final_ln)
+    final_ln = load_model(_type, TransformerLayers.LayerNorm, cfg, state_dict, joinname(prefix, "ln_f"))
+    return TransformerLayers.Chain(trf, final_ln)
 end
 
 function get_state_dict(m::HGFGPT2Model, state_dict, prefix)
@@ -140,7 +140,7 @@ function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::CompositeEmbedding
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::Layers.Dense, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::TransformerLayers.Dense, state_dict, prefix)
     state_dict[joinname(prefix, "weight")] = m.W'
     state_dict[joinname(prefix, "bias")] = m.b
     return state_dict
@@ -152,7 +152,7 @@ function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::SelfAttention, sta
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::Layers.Chain{<:Tuple{Layers.Dense,Layers.Dense}},
+function get_state_dict(p::Type{<:HGFGPT2PreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
     state_dict, prefix)
     get_state_dict(p, m[1], state_dict, joinname(prefix, "c_fc"))
     get_state_dict(p, m[2], state_dict, joinname(prefix, "c_proj"))

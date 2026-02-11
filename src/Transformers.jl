@@ -24,7 +24,7 @@ export HuggingFaceModels
 
 # Backward compatibility aliases and exports
 const Layers = TransformerLayers
-const TextEncoders = TransformerTokenizers.TextEncoders
+
 const HuggingFace = HuggingFaceModels
 const Datasets = TransformerDatasets
 

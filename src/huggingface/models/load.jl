@@ -1,4 +1,4 @@
-using ..Transformers: lengthselect, skipfirsttoken, skiplasttoken, safe_logitcrossentropy
+using ..TransformerLayers: lengthselect, skipfirsttoken, skiplasttoken, safe_logitcrossentropy
 import ..TransformerLayers
 
 using Flux

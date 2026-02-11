@@ -51,9 +51,9 @@ NeuralAttentionlib.get_attention_func(::CausalLlamaRoPEGroupedQueryAttenOp) = ll
 NeuralAttentionlib.get_attention_func_args(op::CausalLlamaRoPEGroupedQueryAttenOp, q, k, v, mask = nothing) =
     (op.base, op.dim, op.head, op.group, q, k, v, BatchedMask(CausalMask() & mask), op.p)
 
-Layers.set_dropout(op::CausalLlamaRoPEGroupedQueryAttenOp, p) = CausalLlamaRoPEGroupedQueryAttenOp(op.base, op.dim, op.head, op.group, p)
+TransformerLayers.set_dropout(op::CausalLlamaRoPEGroupedQueryAttenOp, p) = CausalLlamaRoPEGroupedQueryAttenOp(op.base, op.dim, op.head, op.group, p)
 
 const CausalLlamaRoPEGroupedQueryAttenOpWithScore{F, D, P} = NeuralAttentionlib.WithScore{CausalLlamaRoPEGroupedQueryAttenOp{F, D, P}}
 
-Layers.argument_names(::CausalLlamaRoPEGroupedQueryAttenOp) = (:hidden_state, :attention_mask)
-Layers.apply_on_namedtuple(op::CausalLlamaRoPEGroupedQueryAttenOp, nt::NamedTuple) = Layers.apply_attention_op(op, nt)
+TransformerLayers.argument_names(::CausalLlamaRoPEGroupedQueryAttenOp) = (:hidden_state, :attention_mask)
+TransformerLayers.apply_on_namedtuple(op::CausalLlamaRoPEGroupedQueryAttenOp, nt::NamedTuple) = TransformerLayers.apply_attention_op(op, nt)

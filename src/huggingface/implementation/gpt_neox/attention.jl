@@ -111,9 +111,9 @@ NeuralAttentionlib.get_attention_func(::CausalGPTNeoXRoPEMultiheadQKVAttenOp) = 
 NeuralAttentionlib.get_attention_func_args(op::CausalGPTNeoXRoPEMultiheadQKVAttenOp, q, k, v, mask = nothing) =
     (op.base, op.dim, op.head, q, k, v, BatchedMask(CausalMask() & mask), op.p)
 
-Layers.set_dropout(op::CausalGPTNeoXRoPEMultiheadQKVAttenOp, p) = CausalGPTNeoXRoPEMultiheadQKVAttenOp(op.base, op.dim, op.head, p)
+TransformerLayers.set_dropout(op::CausalGPTNeoXRoPEMultiheadQKVAttenOp, p) = CausalGPTNeoXRoPEMultiheadQKVAttenOp(op.base, op.dim, op.head, p)
 
 const CausalGPTNeoXRoPEMultiheadQKVAttenOpWithScore{F, D, P} = NeuralAttentionlib.WithScore{CausalGPTNeoXRoPEMultiheadQKVAttenOp{F, D, P}}
 
-Layers.argument_names(::CausalGPTNeoXRoPEMultiheadQKVAttenOp) = (:hidden_state, :attention_mask)
-Layers.apply_on_namedtuple(op::CausalGPTNeoXRoPEMultiheadQKVAttenOp, nt::NamedTuple) = Layers.apply_attention_op(op, nt)
+TransformerLayers.argument_names(::CausalGPTNeoXRoPEMultiheadQKVAttenOp) = (:hidden_state, :attention_mask)
+TransformerLayers.apply_on_namedtuple(op::CausalGPTNeoXRoPEMultiheadQKVAttenOp, nt::NamedTuple) = TransformerLayers.apply_attention_op(op, nt)

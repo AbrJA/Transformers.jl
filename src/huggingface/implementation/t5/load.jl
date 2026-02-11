@@ -201,24 +201,24 @@ function load_model(_type::Type{<:HGFT5PreTrainedModel}, ::Type{<:TransformerDec
     blocks = []
     for i = 1:n
         lprefix = joinname(prefix, :block, i - 1, :layer)
-        sa_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "0.layer_norm"))
+        sa_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "0.layer_norm"))
         op_type = isone(i) ? T5RPECausalMultiheadQKVAttenOp : T5BiasedCausalMultiheadQKVAttenOp
-        sa = load_model(_type, Layers.SelfAttention{op_type}, cfg, state_dict, joinname(lprefix, "0.SelfAttention"))
-        sa = Layers.PreNormResidual(Layers.DropoutLayer(sa, p), sa_ln)
-        ca_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "1.layer_norm"))
-        ca = load_model(_type, Layers.CrossAttention, cfg, state_dict, joinname(lprefix, "1.EncDecAttention"))
-        ca = Layers.PreNormResidual(Layers.DropoutLayer(ca, p), ca_ln)
-        ff_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "2.layer_norm"))
-        ff = load_model(_type, Layers.Chain{Tuple{Layers.Dense,Layers.Dense}},
+        sa = load_model(_type, TransformerLayers.SelfAttention{op_type}, cfg, state_dict, joinname(lprefix, "0.SelfAttention"))
+        sa = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(sa, p), sa_ln)
+        ca_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "1.layer_norm"))
+        ca = load_model(_type, TransformerLayers.CrossAttention, cfg, state_dict, joinname(lprefix, "1.EncDecAttention"))
+        ca = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(ca, p), ca_ln)
+        ff_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(lprefix, "2.layer_norm"))
+        ff = load_model(_type, TransformerLayers.Chain{Tuple{TransformerLayers.Dense,TransformerLayers.Dense}},
             cfg, state_dict, joinname(lprefix, "2.DenseReluDense"))
-        ff = Layers.PreNormResidual(Layers.DropoutLayer(ff, p), ff_ln)
+        ff = TransformerLayers.PreNormResidual(TransformerLayers.DropoutLayer(ff, p), ff_ln)
         block = TransformerDecoderBlock(sa, ca, ff)
         push!(blocks, block)
     end
     collect_f = collect_output ? t5_collect_outputs : nothing
     trf = Transformer(Tuple(blocks), collect_f)
-    final_ln = load_model(_type, Layers.RMSLayerNorm, cfg, state_dict, joinname(prefix, "final_layer_norm"))
-    return Layers.Chain(trf, Layers.DropoutLayer(final_ln, p))
+    final_ln = load_model(_type, TransformerLayers.RMSLayerNorm, cfg, state_dict, joinname(prefix, "final_layer_norm"))
+    return TransformerLayers.Chain(trf, TransformerLayers.DropoutLayer(final_ln, p))
 end
 
 
@@ -253,7 +253,7 @@ function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Seq2Seq, state_dict,
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Layers.SelfAttention, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::TransformerLayers.SelfAttention, state_dict, prefix)
     get_state_dict(p, m.qkv_proj.layers[1], state_dict, joinname(prefix, "q"))
     get_state_dict(p, m.qkv_proj.layers[2], state_dict, joinname(prefix, "k"))
     get_state_dict(p, m.qkv_proj.layers[3], state_dict, joinname(prefix, "v"))
@@ -267,7 +267,7 @@ function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Layers.SelfAttention
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Layers.CrossAttention, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::TransformerLayers.CrossAttention, state_dict, prefix)
     get_state_dict(p, m.q_proj, state_dict, joinname(prefix, "q"))
     get_state_dict(p, m.kv_proj.layers[1], state_dict, joinname(prefix, "k"))
     get_state_dict(p, m.kv_proj.layers[2], state_dict, joinname(prefix, "v"))
@@ -275,7 +275,7 @@ function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Layers.CrossAttentio
     return state_dict
 end
 
-function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::Layers.Chain{<:Tuple{Any,Layers.Dense}}, state_dict, prefix)
+function get_state_dict(p::Type{<:HGFT5PreTrainedModel}, m::TransformerLayers.Chain{<:Tuple{Any,TransformerLayers.Dense}}, state_dict, prefix)
     if m[1] isa T5Gated
         get_state_dict(p, m[1].layer.gate, state_dict, joinname(prefix, "wi0"))
         get_state_dict(p, m[1].layer.linear, state_dict, joinname(prefix, "wi1"))
