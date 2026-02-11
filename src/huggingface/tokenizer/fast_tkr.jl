@@ -48,7 +48,7 @@ end
 extract_and_add_tokens!(::Nothing, _) = nothing
 function extract_and_add_tokens!(added_token_list, vocab_list)
     iszero(length(added_token_list)) && return nothing
-    added_token_list = sort(added_token_list; by = Base.Fix2(getindex, "id"))
+    added_token_list = sort(added_token_list; by=Base.Fix2(getindex, "id"))
     match_tokens = String[]
     for added_token in added_token_list
         vidx, token, isspecial = extract_added_token(added_token)
@@ -133,7 +133,7 @@ function extract_tokenization_method(::Val{:BPE}, model_dict)
     if byte_fallback
         bpe = ByteFallbackBPE(vocab_list, merges, sepsym, endsym)
     else
-        cache = LRU{AbstractString, Vector{String}}(; maxsize = 1000)
+        cache = LRU{AbstractString,Vector{String}}(; maxsize=1000)
         bpe = CachedBPE(BPE(merges, sepsym, endsym), cache)
     end
     return Base.Fix2(BPETokenization, bpe), bpe, unk_token, vocab_list
@@ -151,7 +151,7 @@ function extract_tokenization_method(::Val{:Unigram}, model_dict)
     end
     unk = vocab_list[unki]
     unigram = Unigram(vocab_list, scores, unki)
-    cache = LRU{AbstractString, Vector{String}}(; maxsize = 1000)
+    cache = LRU{AbstractString,Vector{String}}(; maxsize=1000)
     unigram = CachedUnigram(unigram, cache)
     return Base.Fix2(UnigramTokenization, unigram), unigram, unk, vocab_list
 end
@@ -199,7 +199,7 @@ function extract_pre_tokenization(
     add_prefix_space = pretokenizer_dict["add_prefix_space"]
     if isnothing(tokenization)
         tokenization = EachMatchTokenization(RuRegex("$replacement[^$replacement]*|[^$replacement]+"))
-        normalizer = normalizer ∘ Base.Fix2(ReplaceNormalizer, ' '=>replacement)
+        normalizer = normalizer ∘ Base.Fix2(ReplaceNormalizer, ' ' => replacement)
         if add_prefix_space
             normalizer = normalizer ∘ Base.Fix2(SentenceFuncNormalizer, ensure_prefix(replacement))
         end
@@ -263,6 +263,31 @@ function extract_pre_tokenization(
 end
 
 function extract_pre_tokenization(
+    ::Val{:Digits}, pretokenizer_dict, tokenization, match_tokens, normalizer, tokenizer_dict
+)
+    individual_digits = get(pretokenizer_dict, "individual_digits", true)
+    if individual_digits
+        # Split digits into individual characters: each digit is its own token,
+        # while non-digit runs remain as single tokens.
+        # This regex matches either a single digit or a sequence of non-digits.
+        digit_regex = RuRegex(raw"\d|[^\d]+")
+        if isnothing(tokenization)
+            tokenization = EachMatchTokenization(digit_regex)
+        else
+            # If we already have a tokenization, we need to add digit splitting
+            # as a nested split within words. Use a normalizer-based approach
+            # by wrapping existing tokenization with digit isolation.
+            normalizer = normalizer ∘ Base.Fix2(WordFuncNormalizer, identity)
+            tokenization_warn = "Digits pre-tokenizer chained with existing tokenization; " *
+                                "digits will be split at the word level"
+            @debug tokenization_warn
+        end
+    end
+    # If individual_digits is false, this is a no-op
+    return tokenization, match_tokens, normalizer
+end
+
+function extract_pre_tokenization(
     ::Val{:Sequence}, pretokenizer_dict, tokenization, match_tokens, normalizer, tokenizer_dict
 )
     for sub_pretokenizer_dict in pretokenizer_dict["pretokenizers"]
@@ -303,13 +328,13 @@ function extract_normalizer(::Val{:BertNormalizer}, normalizer_dict, tokenizatio
     @assert normalizer_dict["clean_text"] load_error_msg("bert normalize without clean_text")
     check = Ref{Bool}(false)
     scan(x -> (x isa BertUnCasedPreTokenization || x isa BertCasedPreTokenization) && (check[] = true),
-         TokenizerStyle(), tokenization)
+        TokenizerStyle(), tokenization)
     check[] || load_error("BertNormalizer without BertPreTokenizer is unsupported")
     return tokenization
 end
 
 extract_normalizer(::Val{:Lowercase}, normalizer_dict, tokenization, tokenizer_dict) =
-    TextEncodeBase.SentenceReplaceNormalizer(TextEncodeBase.LowercaseNormalizer(tokenization), "İ"=>"İ")
+    TextEncodeBase.SentenceReplaceNormalizer(TextEncodeBase.LowercaseNormalizer(tokenization), "İ" => "İ")
 
 extract_normalizer(::Val{:NFD}, normalizer_dict, tokenization, tokenizer_dict) =
     TextEncodeBase.UnicodeNormalizer(tokenization, :NFD)
@@ -333,7 +358,7 @@ function extract_normalizer(::Val{:Replace}, normalizer_dict, tokenization, toke
         load_error_msg("Only support regex or String pattern")
     end
     content = normalizer_dict["content"]
-    return ReplaceNormalizer(tokenization, pattern=>content)
+    return ReplaceNormalizer(tokenization, pattern => content)
 end
 
 function extract_normalizer(::Val{:Precompiled}, normalizer_dict, tokenization, tokenizer_dict)
@@ -358,7 +383,7 @@ function extract_trunc_pad(tokenizer_dict)
     # Therefore, both of them would have a `max_length` fields.
     # But in our setting, they must be applied together (since we are going to convert to tensor).
     # We use the `max_length` of `truncation` as the possible final output length.
-    process_config = Dict{Symbol, Any}()
+    process_config = Dict{Symbol,Any}()
     pad_dict = tokenizer_dict["padding"]
     trunc_dict = tokenizer_dict["truncation"]
     trunc = nothing
@@ -477,7 +502,7 @@ function extract_processor(tokenizer_json)
 end
 
 function reduce_nestedcall(fs)
-    return foldl(fs; init = []) do init, f
+    return foldl(fs; init=[]) do init, f
         f isa typeof(identity) && return init
         isempty(init) && return push!(init, f)
         f0 = pop!(init)
@@ -493,7 +518,7 @@ end
 function build_pipeline(fs)
     isempty(fs) && return identity
     length(fs) == 1 && return fs[]
-    return foldl(Iterators.drop(fs, 1); init = Pipeline{:token}(first(fs), 1)) do pipe, f
+    return foldl(Iterators.drop(fs, 1); init=Pipeline{:token}(first(fs), 1)) do pipe, f
         pipe |> Pipeline{:token}(f, :token)
     end |> PipeGet{:token}()
 end

@@ -1,8 +1,10 @@
 using Flux
-using Flux: GPU_BACKEND, gpu_backend!
 using Functors
 
 is_precompiling() = ccall(:jl_generating_output, Cint, ()) == 1
+
+# Helper to get the GPU backend string, compatible with Flux v0.14.23+
+_gpu_backend() = string(Flux.gpu_backend())
 
 """
     enable_gpu(t=true)
@@ -21,24 +23,26 @@ function enable_gpu(t::Bool=true)
     if !t
         return @eval @inline todevice(args...; kws...) = tocpudevice(args...; kws...)
     end
-    @static if GPU_BACKEND == "CUDA"
+    backend = _gpu_backend()
+    if backend == "CUDA"
         @eval Main begin
             using CUDA
             CUDA.functional() || error("CUDA not functional")
         end
-    elseif GPU_BACKEND == "AMDGPU"
+    elseif backend == "AMDGPU"
         @eval Main begin
             using AMDGPU
             AMDGPU.functional() || error("AMDGPU not functional")
         end
-    elseif GPU_BACKEND == "Metal"
+    elseif backend == "Metal"
         @eval Main begin
             using Metal
             Metal.functional() || error("Metal not functional")
         end
-    elseif GPU_BACKEND == "CPU"
+    elseif backend == "CPU"
+        # no-op
     else
-        error("Unsupported GPU backend: $GPU_BACKEND")
+        error("Unsupported GPU backend: $backend")
     end
     @eval @inline todevice(args...; kws...) = togpudevice(args...; kws...)
 end
@@ -56,35 +60,36 @@ Move data to device, only when gpu is enable with `enable_gpu`, basically equal 
 Move data to gpu device, backend selected by `Flux.gpu_backend!`.
 """
 @inline function togpudevice(args...; kws...)
-    @static if GPU_BACKEND == "CUDA"
+    backend = _gpu_backend()
+    if backend == "CUDA"
         return tocudadevice(args...; kws...)
-    elseif GPU_BACKEND == "AMDGPU"
+    elseif backend == "AMDGPU"
         return toamdgpudevice(args...; kws...)
-    elseif GPU_BACKEND == "Metal"
+    elseif backend == "Metal"
         return tometaldevice(args...; kws...)
-    elseif GPU_BACKEND == "CPU"
+    elseif backend == "CPU"
         return tocpudevice(args...; kws...)
     else
-        error("Unsupported GPU backend: $GPU_BACKEND")
+        error("Unsupported GPU backend: $backend")
     end
 end
 
-const FluxAdaptor = Union{Flux.FluxCPUAdaptor, Flux.FluxCUDAAdaptor, Flux.FluxAMDGPUAdaptor, Flux.FluxMetalAdaptor}
-tocpudevice(args...; cache = IdDict()) = toxdevice(Flux.FluxCPUAdaptor(), args...; cache)
-tocudadevice(args...; cache = IdDict()) = toxdevice(Flux.FluxCUDAAdaptor(), args...; cache)
-toamdgpudevice(args...; cache = IdDict()) = toxdevice(Flux.FluxAMDGPUAdaptor(), args...; cache)
-tometaldevice(args...; cache = IdDict()) = toxdevice(Flux.FluxMetalAdaptor(), args...; cache)
+const FluxAdaptor = Union{Flux.FluxCPUAdaptor,Flux.FluxCUDAAdaptor,Flux.FluxAMDGPUAdaptor,Flux.FluxMetalAdaptor}
+tocpudevice(args...; cache=IdDict()) = toxdevice(Flux.FluxCPUAdaptor(), args...; cache)
+tocudadevice(args...; cache=IdDict()) = toxdevice(Flux.FluxCUDAAdaptor(), args...; cache)
+toamdgpudevice(args...; cache=IdDict()) = toxdevice(Flux.FluxAMDGPUAdaptor(), args...; cache)
+tometaldevice(args...; cache=IdDict()) = toxdevice(Flux.FluxMetalAdaptor(), args...; cache)
 
-toxdevice(adaptor::FluxAdaptor, x; cache = IdDict()) = _toxdevice(adaptor, x, cache)
-function toxdevice(adaptor::FluxAdaptor, x, xs...; cache = IdDict())
-    return (toxdevice(adaptor, x; cache), map(xi->toxdevice(adaptor, xi; cache), xs)...)
+toxdevice(adaptor::FluxAdaptor, x; cache=IdDict()) = _toxdevice(adaptor, x, cache)
+function toxdevice(adaptor::FluxAdaptor, x, xs...; cache=IdDict())
+    return (toxdevice(adaptor, x; cache), map(xi -> toxdevice(adaptor, xi; cache), xs)...)
 end
-toxdevice(adaptor::FluxAdaptor, x::Tuple; cache = IdDict()) = toxdevice(adaptor, x...; cache)
-toxdevice(adaptor::FluxAdaptor, x::Tuple{Any}; cache = IdDict()) = (toxdevice(adaptor, x...; cache),)
-toxdevice(adaptor::FluxAdaptor, x::NamedTuple{name}; cache = IdDict()) where name =
+toxdevice(adaptor::FluxAdaptor, x::Tuple; cache=IdDict()) = toxdevice(adaptor, x...; cache)
+toxdevice(adaptor::FluxAdaptor, x::Tuple{Any}; cache=IdDict()) = (toxdevice(adaptor, x...; cache),)
+toxdevice(adaptor::FluxAdaptor, x::NamedTuple{name}; cache=IdDict()) where name =
     NamedTuple{name}(toxdevice(adaptor, values(x); cache))
 
-struct AdaptorCache{A, C} <: AbstractDict{Any, Any}
+struct AdaptorCache{A,C} <: AbstractDict{Any,Any}
     adaptor::A
     cache::C
 end
@@ -93,11 +98,11 @@ Base.iterate(cache::AdaptorCache, state...) = iterate(cache.cache, state...)
 Base.setindex!(cache::AdaptorCache, value, key) = setindex!(cache.cache, value, key)
 function __cacheget_generator__(world, source, self, cache, x)
     adaptor = cache.parameters[1]
-    RT = Core.Compiler.return_type(Flux.adapt, Tuple{adaptor, x}, world)
+    RT = Core.Compiler.return_type(Flux.adapt, Tuple{adaptor,x}, world)
     body = Expr(:call, GlobalRef(Base, :getindex), Expr(:., :cache, QuoteNode(:cache)), :x)
     body = Expr(:(::), body, RT)
     expr = Expr(:lambda, [Symbol("#self#"), :cache, :x],
-                Expr(Symbol("scope-block"), Expr(:block, Expr(:return, body))))
+        Expr(Symbol("scope-block"), Expr(:block, Expr(:return, body))))
     ci = ccall(:jl_expand, Any, (Any, Any), expr, @__MODULE__)
     ci.inlineable = true
     return ci
@@ -108,7 +113,7 @@ end
 end
 # https://github.com/FluxML/Functors.jl/blob/cfc6a608e309c64e4da0f44cd937cb9efa4fd6c7/src/walks.jl#L190
 # CachedWalk + AdaptorCache: CachedWalk only take cache::IdDict, so we made our own
-struct AdaptorWalk{W<:Functors.AbstractWalk, C<:AdaptorCache} <: Functors.AbstractWalk
+struct AdaptorWalk{W<:Functors.AbstractWalk,C<:AdaptorCache} <: Functors.AbstractWalk
     walk::W
     cache::C
 end
