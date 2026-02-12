@@ -125,7 +125,7 @@ end
 
 include("utils.jl")
 include("slow_tkr.jl")
-include("fast_tkr.jl")
+include("fast_tokenizer.jl")
 
 # api doc
 

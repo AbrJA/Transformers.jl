@@ -22,6 +22,11 @@ include("HuggingFaceModels.jl")
 using .HuggingFaceModels
 export HuggingFaceModels
 
+# Re-export Pipelines
+include("pipelines/TransformerPipelines.jl")
+using .TransformerPipelines
+export TransformerPipelines
+
 # Backward compatibility aliases and exports
 const Layers = TransformerLayers
 

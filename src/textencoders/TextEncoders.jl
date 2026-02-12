@@ -303,6 +303,8 @@ function TextEncodeBase.encode(e::AbstractTransformerTextEncoder, src, trg)
     return (encoder_input=psrc, decoder_input=merge(ptrg, (; cross_attention_mask)))
 end
 
+
+include("bert_pipeline.jl")
 include("bert_textencoder.jl")
 include("gpt_textencoder.jl")
 include("t5_textencoder.jl")
