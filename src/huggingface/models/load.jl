@@ -52,6 +52,8 @@ end
 isbasemodel(_) = false
 isbasemodel(::Type{<:HGFPreTrained{T,:model}}) where T = true
 
+function basemodelkey end
+
 # Sadly a really inaccurate gelu but needed to match the value with the python models
 quick_gelu(x) = x * sigmoid_fast(NNlib.oftf(x, 1.702) * x)
 function quick_gelu_forward_backward(x)

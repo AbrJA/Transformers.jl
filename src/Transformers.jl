@@ -2,6 +2,11 @@ module Transformers
 
 using Flux
 
+# Core Interfaces
+include("Interfaces.jl")
+using .Interfaces
+export Interfaces
+
 # Re-export core modules
 include("TransformerLayers.jl")
 using .TransformerLayers
@@ -26,6 +31,63 @@ export HuggingFaceModels
 include("pipelines/TransformerPipelines.jl")
 using .TransformerPipelines
 export TransformerPipelines
+
+# Models (New Modular Structure)
+include("models/Bert/bert.jl")
+using .Bert
+export Bert
+
+include("models/GPT2/gpt2.jl")
+using .GPT2
+export GPT2
+
+include("models/GPT/gpt.jl")
+using .GPT
+export GPT
+
+include("models/GPTNeo/gpt_neo.jl")
+using .GPTNeo
+export GPTNeo
+
+include("models/GPTNeoX/gpt_neox.jl")
+using .GPTNeoX
+export GPTNeoX
+
+include("models/GPTJ/gptj.jl")
+using .GPTJ
+export GPTJ
+
+include("models/Llama/llama.jl")
+using .Llama
+export Llama
+
+include("models/Bloom/bloom.jl")
+using .Bloom
+export Bloom
+
+include("models/Phi/phi.jl")
+using .Phi
+export Phi
+
+include("models/Bart/bart.jl")
+using .Bart
+export Bart
+
+include("models/T5/t5.jl")
+using .T5
+export T5
+
+include("models/DistilBert/distilbert.jl")
+using .DistilBert
+export DistilBert
+
+include("models/Roberta/roberta.jl")
+using .Roberta
+export Roberta
+
+include("models/CLIP/clip.jl")
+using .CLIP
+export CLIP
 
 # Backward compatibility aliases and exports
 const Layers = TransformerLayers

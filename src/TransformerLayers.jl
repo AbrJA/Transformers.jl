@@ -11,9 +11,11 @@ export Seq2Seq, Transformer,
     TransformerBlock, TransformerDecoderBlock,
     PreNormTransformerBlock, PostNormTransformerBlock,
     PreNormTransformerDecoderBlock, PostNormTransformerDecoderBlock,
-    Embed, EmbedDecoder, FixedLenPositionEmbed, SinCosPositionEmbed
+    Embed, EmbedDecoder, FixedLenPositionEmbed, SinCosPositionEmbed,
+    safe_crossentropy, safe_logitcrossentropy, unsafe_crossentropy, unsafe_logitcrossentropy
 
 export enable_gpu, todevice, togpudevice, tocpudevice
+export @fluxshow, @fluxlayershow
 
 include("layers/utils.jl")
 include("layers/architecture.jl")

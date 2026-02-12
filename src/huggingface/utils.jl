@@ -2,16 +2,18 @@ using Mmap
 using JSON3
 using HuggingFaceApi: list_model_files
 
-function mmap_open(file, fsz = filesize(file))
-    return open(f->Mmap.mmap(f, Vector{UInt8}, (Int(fsz), )), file, "r")
+function mmap_open(file, fsz=filesize(file))
+    return open(f -> Mmap.mmap(f, Vector{UInt8}, (Int(fsz),)), file, "r")
 end
 
 json_load(f) = JSON3.read(mmap_open(f))
 
 _ensure(f::Function, A, args...; kwargs...) = isnothing(A) ? f(args...; kwargs...) : A
 
-ensure_possible_files(possible_files, model_name; revision = nothing, auth_token = HuggingFaceApi.get_token(), kw...) =
-    _ensure(list_model_files, possible_files, model_name; revision, token = auth_token)
+function ensure_possible_files(possible_files, model_name; revision=nothing, auth_token=HuggingFaceApi.get_token(), kw...)
+    isdir(model_name) && return readdir(model_name)
+    return _ensure(list_model_files, possible_files, model_name; revision, token=auth_token)
+end
 
 ensure_config(config, model_name; kw...) = _ensure(load_config, config, model_name; kw...)
 
@@ -19,8 +21,8 @@ load_error_msg(msg) = "$msg\nFile an issue with the model name you want to load.
 load_error(msg) = error(load_error_msg(msg))
 
 struct AliasNamedTuple{
-    FN <: NamedTuple{NAME, T} where {NAME, T <: Tuple{Int, Vararg{Int}}},
-    FT <: Tuple
+    FN<:NamedTuple{NAME,T} where {NAME,T<:Tuple{Int,Vararg{Int}}},
+    FT<:Tuple
 }
     namemap::FN
     element::FT
@@ -32,7 +34,7 @@ Base.getindex(c::AliasNamedTuple, k::Symbol) = c[getfield(c, :namemap)[k]]
 Base.firstindex(c::AliasNamedTuple) = firstindex(getfield(c, :element))
 Base.lastindex(c::AliasNamedTuple) = lastindex(getfield(c, :element))
 Base.haskey(c::AliasNamedTuple, k) = haskey(getfield(c, :namemap), k)
-Base.keys(c::AliasNamedTuple) = ntuple(i->keys(getfield(c, :namemap))[i], Val(length(c)))
+Base.keys(c::AliasNamedTuple) = ntuple(i -> keys(getfield(c, :namemap))[i], Val(length(c)))
 Base.values(c::AliasNamedTuple) = getfield(c, :element)
 Base.get(c::AliasNamedTuple, key, default) = haskey(c, key) ? c[key] : default
 Base.propertynames(c::AliasNamedTuple) = keys(getfield(c, :namemap))
@@ -61,10 +63,10 @@ function Base.show(_io::IO, c::AliasNamedTuple)
     print(io, ')')
 end
 
-aliasof(namemap::NamedTuple{NAME, T}, k::Symbol) where {NAME, T <: Tuple{Int, Vararg{Int}}} = findfirst(==(get(namemap, k, 0)), namemap)
+aliasof(namemap::NamedTuple{NAME,T}, k::Symbol) where {NAME,T<:Tuple{Int,Vararg{Int}}} = findfirst(==(get(namemap, k, 0)), namemap)
 aliasof(c::AliasNamedTuple, k::Symbol) = aliasof(getfield(c, :namemap), k)
 
-function aliases(namemap::NamedTuple{NAME, T}) where {NAME, T <: Tuple{Int, Vararg{Int}}}
+function aliases(namemap::NamedTuple{NAME,T}) where {NAME,T<:Tuple{Int,Vararg{Int}}}
     n = maximum(namemap)
     return keys(namemap)[n+1:end]
 end
@@ -73,7 +75,7 @@ function aliases(c::AliasNamedTuple)
     return keys(namemap)[length(c)+1:end]
 end
 
-aliasgroup(namemap::NamedTuple{NAME, T}, k::Symbol) where {NAME, T <: Tuple{Int, Vararg{Int}}} = findall(==(get(namemap, k, 0)), namemap)
+aliasgroup(namemap::NamedTuple{NAME,T}, k::Symbol) where {NAME,T<:Tuple{Int,Vararg{Int}}} = findall(==(get(namemap, k, 0)), namemap)
 aliasgroup(c::AliasNamedTuple, k::Symbol) = aliasgroup(getfield(c, :namemap), k)
 
 function alias_tuplem(ex)
