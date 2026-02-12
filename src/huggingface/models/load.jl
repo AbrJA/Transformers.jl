@@ -44,85 +44,10 @@ for (task, lfunc) in (
     end
 end
 
-function _hgfmodelstruct(model_type, type_name, task_name, field_names, expr=nothing)
-    sbody = []
-    tnames = []
-    fbody = :nt
-    for fname in field_names
-        tname = Symbol(uppercase(String(fname)))
-        push!(tnames, tname)
-        push!(sbody, :($fname::$tname))
-        fbody = :(model.$fname($fbody))
-    end
-    sname = Symbol("HGF", type_name, task_name)
-    name = Expr(:<:,
-        Expr(:curly, sname, tnames...),
-        Expr(:curly, :HGFPreTrained, QuoteNode(model_type), QuoteNode(Symbol(lowercase(String(task_name))))))
-    st = Expr(:struct, false, name, Expr(:block, sbody...))
-    if !isnothing(expr)
-        fbody = expr.args
-    else
-        fbody = (fbody,)
-    end
-    func = :(@inline $(@__MODULE__).hgf_model_forward(model::$sname, nt::NamedTuple) = $(fbody...))
-    return Expr(:block, st, :($(@__MODULE__).Flux.@layer $sname), func)
-end
+# Note: @hgfdef macro has been completely removed.
+# All models now use explicit struct definitions.
+# See individual model files in src/huggingface/implementation/*/load.jl
 
-function _extractfields(ex, field_names=Symbol[])
-    if ex isa Expr
-        for arg in ex.args
-            arg isa Expr && !Meta.isexpr(arg, :.) && _extractfields(arg, field_names)
-        end
-        for arg in ex.args
-            if Meta.isexpr(arg, :.) && arg.args[1] == :model
-                sym = arg.args[2].value
-                sym in field_names || push!(field_names, sym)
-            end
-        end
-    end
-    if Meta.isexpr(ex, :.) && ex.args[1] == :model
-        sym = ex.args[2].value
-        sym in field_names || push!(field_names, sym)
-    end
-    return field_names
-end
-
-function _modeldef(model_type, type_name, ex)
-    ex isa Symbol &&
-        return _hgfmodelstruct(model_type, type_name, ex, (:model, :cls))
-    if Meta.isexpr(ex, :call, 3) && first(ex.args) == :(=>)
-        task_name = ex.args[2]
-        ex = ex.args[3]
-        if Meta.isexpr(ex, :tuple)
-            all(Base.Fix2(isa, Symbol), ex.args) &&
-                return _hgfmodelstruct(model_type, type_name, task_name, ex.args)
-        elseif Meta.isexpr(ex, :block)
-            field_names = _extractfields(ex)
-            st = _hgfmodelstruct(model_type, type_name, task_name, field_names, ex)
-            return st
-        end
-    end
-    error("Unknown pattern: $ex")
-end
-
-macro hgfdef(type_name, ex)
-    model_type = QuoteNode(Symbol(lowercase(String(type_name))))
-    return var"@hgfdef"(__source__, __module__, model_type, type_name, ex)
-end
-macro hgfdef(model_type, type_name, ex)
-    if model_type isa Symbol
-        model_type = QuoteNode(model_type)
-    end
-    @assert model_type isa QuoteNode "model_type is not a Symbol"
-    @assert type_name isa Symbol
-    @assert Meta.isexpr(ex, :tuple) "supported models should be put in a tuple"
-    exprs = []
-    for task in ex.args
-        st = _modeldef(model_type.value, type_name, task)
-        append!(exprs, st.args)
-    end
-    return esc(Expr(:block, :(const $(Symbol(:HGF, type_name, :PreTrainedModel)) = HGFPreTrained{$model_type}), exprs...))
-end
 
 isbasemodel(_) = false
 isbasemodel(::Type{<:HGFPreTrained{T,:model}}) where T = true

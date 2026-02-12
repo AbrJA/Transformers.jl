@@ -39,24 +39,88 @@ function (m::BertQA)(x)
 end
 (m::BertQA)(nt::NamedTuple) = merge(nt, m(nt.hidden_state))
 
-@hgfdef Bert (
-    Model => begin
-        outputs = model.encoder(model.embed(nt))
-        if isnothing(model.pooler)
-            return outputs
-        else
-            return model.pooler(outputs)
-        end
-    end,
-    ForPreTraining,
-    LMHeadModel,
-    ForMaskedLM,
-    ForNextSentencePrediction,
-    ForSequenceClassification,
-    ForTokenClassification,
-    ForQuestionAnswering,
-    # ForMultipleChoice,
-)
+# Base BERT Model
+struct HGFBertModel <: HGFPreTrained{:bert,:model}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFBertModel
+
+function (model::HGFBertModel)(nt::NamedTuple)
+    outputs = model.encoder(model.embed(nt))
+    if isnothing(model.pooler)
+        return outputs
+    else
+        return model.pooler(outputs)
+    end
+end
+
+# BERT For Pre-Training
+struct HGFBertForPreTraining <: HGFPreTrained{:bert,:forpretraining}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForPreTraining
+
+(model::HGFBertForPreTraining)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT LM Head Model
+struct HGFBertLMHeadModel <: HGFPreTrained{:bert,:lmheadmodel}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertLMHeadModel
+
+(model::HGFBertLMHeadModel)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT For Masked LM
+struct HGFBertForMaskedLM <: HGFPreTrained{:bert,:formaskedlm}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForMaskedLM
+
+(model::HGFBertForMaskedLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT For Next Sentence Prediction
+struct HGFBertForNextSentencePrediction <: HGFPreTrained{:bert,:fornextsentenceprediction}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForNextSentencePrediction
+
+(model::HGFBertForNextSentencePrediction)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT For Sequence Classification
+struct HGFBertForSequenceClassification <: HGFPreTrained{:bert,:forsequenceclassification}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForSequenceClassification
+
+(model::HGFBertForSequenceClassification)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT For Token Classification
+struct HGFBertForTokenClassification <: HGFPreTrained{:bert,:fortokenclassification}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForTokenClassification
+
+(model::HGFBertForTokenClassification)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# BERT For Question Answering
+struct HGFBertForQuestionAnswering <: HGFPreTrained{:bert,:forquestionanswering}
+    model::HGFBertModel
+    cls
+end
+@fluxlayershow HGFBertForQuestionAnswering
+
+(model::HGFBertForQuestionAnswering)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFBertPreTrainedModel = HGFPreTrained{:bert}
+
 
 basemodelkey(::Type{<:HGFPreTrained{:bert}}) = :bert
 
