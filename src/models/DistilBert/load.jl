@@ -25,13 +25,13 @@ end
 (m::DistilBertQA)(nt::NamedTuple) = merge(nt, m(nt.hidden_state))
 
 struct HGFDistilBertModel{E,T} <: HGFPreTrained{:distilbert,:model}
-    embeddings::E
-    transformer::T
+    embed::E
+    encoder::T
 end
 @fluxshow HGFDistilBertModel
 
 function (model::HGFDistilBertModel)(nt::NamedTuple)
-    outputs = model.transformer(model.embeddings(nt))
+    outputs = model.encoder(model.embed(nt))
     return outputs
 end
 

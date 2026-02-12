@@ -112,6 +112,9 @@ struct FlexAttenOp{Mode, Causal, Scaled, Arg, F} <: AbstractAttenOp
     arg::Arg
     head::Int
     p::F
+    function FlexAttenOp{Mode, Causal, Scaled, Arg, F}(arg::Arg, head::Int, p::F) where {Mode, Causal, Scaled, Arg, F}
+        return new{Mode, Causal, Scaled, Arg, F}(arg, head, p)
+    end
 end
 FlexAttenOp{Mode, Causal, Scaled}(arg::Arg, head::Int, p::F) where {Mode, Causal, Scaled, Arg, F} =
     FlexAttenOp{Mode, Causal, Scaled, Arg, F}(arg, head, p)
@@ -152,45 +155,55 @@ set_dropout(op::FlexAttenOp{Mode, Causal, Scaled}, p) where {Mode, Causal, Scale
 # Aliases
 
 const MultiheadQKVDotAttenOp = FlexAttenOp{:Standard, false, false, Nothing}
-MultiheadQKVDotAttenOp(head::Int, p = nothing) = MultiheadQKVDotAttenOp(nothing, head, p)
+# MultiheadQKVDotAttenOp(head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const MultiheadQKVDotAttenOpWithScore{F} = NeuralAttentionlib.WithScore{MultiheadQKVDotAttenOp{F}}
 
 const CausalMultiheadQKVDotAttenOp = FlexAttenOp{:Standard, true, false, Nothing}
-CausalMultiheadQKVDotAttenOp(head::Int, p = nothing) = CausalMultiheadQKVDotAttenOp(nothing, head, p)
+# CausalMultiheadQKVDotAttenOp(head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const CausalMultiheadQKVDotAttenOpWithScore{F} = NeuralAttentionlib.WithScore{CausalMultiheadQKVDotAttenOp{F}}
 
 const LocalMultiheadQKVAttenOp = FlexAttenOp{:Local, false, true, Int}
-LocalMultiheadQKVAttenOp(size::Int, head::Int, p = nothing) = LocalMultiheadQKVAttenOp(size, head, p)
+# LocalMultiheadQKVAttenOp(size::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const LocalMultiheadQKVAttenOpWithScore{F} = NeuralAttentionlib.WithScore{LocalMultiheadQKVAttenOp{F}}
 
 const LocalCausalMultiheadQKVAttenOp = FlexAttenOp{:Local, true, true, Int}
-LocalCausalMultiheadQKVAttenOp(size::Int, head::Int, p = nothing) = LocalCausalMultiheadQKVAttenOp(size, head, p)
+# LocalCausalMultiheadQKVAttenOp(size::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const LocalCausalMultiheadQKVAttenOpWithScore{F} = NeuralAttentionlib.WithScore{LocalCausalMultiheadQKVAttenOp{F}}
 
 const LocalMultiheadQKVDotAttenOp = FlexAttenOp{:Local, false, false, Int}
-LocalMultiheadQKVDotAttenOp(size::Int, head::Int, p = nothing) = LocalMultiheadQKVDotAttenOp(size, head, p)
+# LocalMultiheadQKVDotAttenOp(size::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const LocalMultiheadQKVDotAttenOpWithScore{F} = NeuralAttentionlib.WithScore{LocalMultiheadQKVDotAttenOp{F}}
 
 const LocalCausalMultiheadQKVDotAttenOp = FlexAttenOp{:Local, true, false, Int}
-LocalCausalMultiheadQKVDotAttenOp(size::Int, head::Int, p = nothing) = LocalCausalMultiheadQKVDotAttenOp(size, head, p)
+# LocalCausalMultiheadQKVDotAttenOp(size::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const LocalCausalMultiheadQKVDotAttenOpWithScore{F} = NeuralAttentionlib.WithScore{LocalCausalMultiheadQKVDotAttenOp{F}}
 
 const RoPEMultiheadQKVAttenOp = FlexAttenOp{:RoPE, false, true}
-RoPEMultiheadQKVAttenOp(dim::Int, head::Int, p = nothing) = RoPEMultiheadQKVAttenOp(dim, head, p)
-RoPEMultiheadQKVAttenOp(head::Int) = RoPEMultiheadQKVAttenOp(nothing, head, nothing)
+# RoPEMultiheadQKVAttenOp(dim::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
+RoPEMultiheadQKVAttenOp(head::Int) = FlexAttenOp{:RoPE, false, true, Nothing, Nothing}(nothing, head, nothing)
 const RoPEMultiheadQKVAttenOpWithScore{D, F} = NeuralAttentionlib.WithScore{RoPEMultiheadQKVAttenOp{D, F}}
 
 const CausalRoPEMultiheadQKVAttenOp = FlexAttenOp{:RoPE, true, true}
-CausalRoPEMultiheadQKVAttenOp(dim::Int, head::Int, p = nothing) = CausalRoPEMultiheadQKVAttenOp(dim, head, p)
-CausalRoPEMultiheadQKVAttenOp(head::Int) = CausalRoPEMultiheadQKVAttenOp(nothing, head, nothing)
+# CausalRoPEMultiheadQKVAttenOp(dim::Int, head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
+CausalRoPEMultiheadQKVAttenOp(head::Int) = FlexAttenOp{:RoPE, true, true, Nothing, Nothing}(nothing, head, nothing)
 const CausalRoPEMultiheadQKVAttenOpWithScore{D, F} = NeuralAttentionlib.WithScore{CausalRoPEMultiheadQKVAttenOp{D, F}}
 
 const ALiBiMultiheadQKVAttenOp = FlexAttenOp{:ALiBi, false, true, Nothing}
-ALiBiMultiheadQKVAttenOp(head::Int, p = nothing) = ALiBiMultiheadQKVAttenOp(nothing, head, p)
+# ALiBiMultiheadQKVAttenOp(head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const ALiBiMultiheadQKVAttenOpWithScore{F} = NeuralAttentionlib.WithScore{ALiBiMultiheadQKVAttenOp{F}}
 
 const CausalALiBiMultiheadQKVAttenOp = FlexAttenOp{:ALiBi, true, true, Nothing}
-CausalALiBiMultiheadQKVAttenOp(head::Int, p = nothing) = CausalALiBiMultiheadQKVAttenOp(nothing, head, p)
+# CausalALiBiMultiheadQKVAttenOp(head::Int, p = nothing) is handled by generic FlexAttenOp constructor
+
 const CausalALiBiMultiheadQKVAttenOpWithScore{F} = NeuralAttentionlib.WithScore{CausalALiBiMultiheadQKVAttenOp{F}}
 
 # layer api
