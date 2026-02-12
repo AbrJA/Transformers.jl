@@ -2,3 +2,5 @@
 CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Transformers = "21ca0261-441d-5938-ace7-c90938fde4d4"
+Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
+NeuralAttentionlib = "12afc1b8-fad6-47e1-9132-84abc478905f"

@@ -12,20 +12,44 @@ Flux.@layer T5Gated
 
 (g::T5Gated)(x) = g.gate(x) .* g.linear(x)
 
-@hgfdef T5 (
-    Model => begin
-        embs = model.embed(nt)
-        outputs = model.seq2seq(embs)
-        encoder_output = Base.structdiff(outputs.encoder_output, NamedTuple{(:position_bias,)})
-        decoder_output = Base.structdiff(outputs.decoder_output, NamedTuple{(:position_bias,)})
-        return merge(outputs, (; encoder_output, decoder_output))
-    end,
-    ForConditionalGeneration,
-    EncoderModel => begin
-        outputs = model.encoder(model.embed(nt))
-        return Base.structdiff(outputs, NamedTuple{(:position_bias,)})
-    end,
-)
+# T5 Model
+struct HGFT5Model <: HGFPreTrained{:t5,:model}
+    embed
+    seq2seq
+end
+@fluxshow HGFT5Model
+
+function (model::HGFT5Model)(nt::NamedTuple)
+    embs = model.embed(nt)
+    outputs = model.seq2seq(embs)
+    encoder_output = Base.structdiff(outputs.encoder_output, NamedTuple{(:position_bias,)})
+    decoder_output = Base.structdiff(outputs.decoder_output, NamedTuple{(:position_bias,)})
+    return merge(outputs, (; encoder_output, decoder_output))
+end
+
+# T5 For Conditional Generation
+struct HGFT5ForConditionalGeneration <: HGFPreTrained{:t5,:forconditionalgeneration}
+    model::HGFT5Model
+    cls
+end
+@fluxlayershow HGFT5ForConditionalGeneration
+
+(model::HGFT5ForConditionalGeneration)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# T5 Encoder Model
+struct HGFT5EncoderModel <: HGFPreTrained{:t5,:encodermodel}
+    embed
+    encoder
+end
+@fluxshow HGFT5EncoderModel
+
+function (model::HGFT5EncoderModel)(nt::NamedTuple)
+    outputs = model.encoder(model.embed(nt))
+    return Base.structdiff(outputs, NamedTuple{(:position_bias,)})
+end
+
+const HGFT5PreTrainedModel = HGFPreTrained{:t5}
+
 
 get_model_type(::Val{:t5}) = merge(_get_model_type(:t5), (withlmheadmodel=HGFT5ForConditionalGeneration,))
 

@@ -36,8 +36,10 @@ module ModelValidation
 
 using Printf
 using PythonCall
+using NeuralAttentionlib
 using Transformers
 using Transformers.HuggingFace
+const np = Ref{Py}()
 
 export ModelSpec, ParityResult, BenchmarkResult
 export register_model!, get_registry, list_models
@@ -54,11 +56,12 @@ const trf = Ref{Py}()
 const time_mod = Ref{Py}()
 
 function ensure_python!()
-    if !isassigned(torch) || pyisnull(torch[])
+    if !isassigned(torch)
         torch[] = pyimport("torch")
         trf[] = pyimport("transformers")
         time_mod[] = pyimport("time")
-        @info "Python modules loaded: torch, transformers"
+        np[] = pyimport("numpy")
+        @info "Python modules loaded: torch, transformers, numpy"
     end
 end
 
@@ -157,7 +160,7 @@ list_models() = sort(collect(keys(MODEL_REGISTRY)))
 function default_encoder_input(; seq_len::Int=10, batch::Int=2, vocab_size::Int=100)
     return (
         token=rand(1:vocab_size, seq_len, batch),
-        attention_mask=ones(Int32, seq_len, batch),
+        attention_mask=NeuralAttentionlib.GenericSeqMask(ones(Int32, seq_len, batch)),
     )
 end
 
@@ -171,7 +174,7 @@ function default_seq2seq_input(; enc_len::Int=10, dec_len::Int=8, batch::Int=2, 
     return (
         encoder_input=(
             token=rand(1:vocab_size, enc_len, batch),
-            attention_mask=ones(Int32, enc_len, batch),
+            attention_mask=NeuralAttentionlib.GenericSeqMask(ones(Int32, enc_len, batch)),
         ),
         decoder_input=(
             token=rand(1:vocab_size, dec_len, batch),
@@ -187,33 +190,43 @@ function default_python_encoder_input(jl_input)
     ensure_python!()
     # Julia tokens are 1-indexed, Python expects 0-indexed
     input_ids = jl_input.token .- Int32(1)
-    attention_mask = jl_input.attention_mask
-    # Julia is column-major (seq_len, batch), Python expects (batch, seq_len)
-    py_input_ids = torch[].tensor(permutedims(input_ids, (2, 1))).long()
-    py_attention_mask = torch[].tensor(permutedims(attention_mask, (2, 1))).long()
-    return pydict(Dict("input_ids" => py_input_ids, "attention_mask" => py_attention_mask))
+    # Extract matrix from GenericSeqMask
+    mask_mat = jl_input.attention_mask.mask
+    # Julia is column-major (seq_len, ..., batch), Python expects (batch, ..., seq_len)
+    # Use collect to ensure densified matrix for PythonCall conversion
+    py_input_ids = torch[].tensor(np[].array(collect(permutedims(input_ids, (2, 1))))).long()
+
+    # Handle both 2D and 3D masks
+    p_mask = ndims(mask_mat) == 2 ? (2, 1) : (ndims(mask_mat), (1:ndims(mask_mat)-1)...)
+    py_attention_mask = torch[].tensor(np[].array(collect(permutedims(Int32.(mask_mat), p_mask)))).long()
+
+    return Dict(:input_ids => py_input_ids, :attention_mask => py_attention_mask)
 end
 
 function default_python_decoder_input(jl_input)
     ensure_python!()
     input_ids = jl_input.token .- Int32(1)
-    py_input_ids = torch[].tensor(permutedims(input_ids, (2, 1))).long()
-    return pydict(Dict("input_ids" => py_input_ids))
+    py_input_ids = torch[].tensor(np[].array(collect(permutedims(input_ids, (2, 1))))).long()
+    return Dict(:input_ids => py_input_ids)
 end
 
 function default_python_seq2seq_input(jl_input)
     ensure_python!()
     enc_ids = jl_input.encoder_input.token .- Int32(1)
     dec_ids = jl_input.decoder_input.token .- Int32(1)
-    enc_mask = jl_input.encoder_input.attention_mask
-    py_enc_ids = torch[].tensor(permutedims(enc_ids, (2, 1))).long()
-    py_dec_ids = torch[].tensor(permutedims(dec_ids, (2, 1))).long()
-    py_enc_mask = torch[].tensor(permutedims(enc_mask, (2, 1))).long()
-    return pydict(Dict(
-        "input_ids" => py_enc_ids,
-        "attention_mask" => py_enc_mask,
-        "decoder_input_ids" => py_dec_ids,
-    ))
+    enc_mask_mat = jl_input.encoder_input.attention_mask.mask
+
+    py_enc_ids = torch[].tensor(np[].array(collect(permutedims(enc_ids, (2, 1))))).long()
+    py_dec_ids = torch[].tensor(np[].array(collect(permutedims(dec_ids, (2, 1))))).long()
+
+    p_mask = ndims(enc_mask_mat) == 2 ? (2, 1) : (ndims(enc_mask_mat), (1:ndims(enc_mask_mat)-1)...)
+    py_enc_mask = torch[].tensor(np[].array(collect(permutedims(Int32.(enc_mask_mat), p_mask)))).long()
+
+    return Dict(
+        :input_ids => py_enc_ids,
+        :attention_mask => py_enc_mask,
+        :decoder_input_ids => py_dec_ids,
+    )
 end
 
 # ============================================================================
@@ -309,7 +322,7 @@ function run_parity_check(spec::ModelSpec; verbose::Bool=true)
         local py_output
         torch[].no_grad().__enter__()
         try
-            py_output = py_model(; pyconvert(Dict{String,Py}, py_input)...)
+            py_output = py_model(; py_input...)
         finally
             torch[].no_grad().__exit__(pybuiltins.None, pybuiltins.None, pybuiltins.None)
         end

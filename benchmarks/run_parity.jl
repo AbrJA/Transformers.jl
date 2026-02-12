@@ -18,6 +18,7 @@ end
 
 using CondaPkg
 using PythonCall   # triggers Python env setup via CondaPkg
+using Pickle       # triggers TransformersPickleExt
 using Transformers
 
 # Parse CLI arguments

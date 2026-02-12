@@ -9,22 +9,70 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: $, WithScore
 
-@hgfdef Roberta (
-    Model => begin
-      outputs = model.encoder(model.embed(nt))
-      if isnothing(model.pooler)
+# RoBERTa Model
+struct HGFRobertaModel <: HGFPreTrained{:roberta, :model}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFRobertaModel
+
+function (model::HGFRobertaModel)(nt::NamedTuple)
+    outputs = model.encoder(model.embed(nt))
+    if isnothing(model.pooler)
         return outputs
-      else
+    else
         return model.pooler(outputs)
-      end
-    end,
-    ForMaskedLM,
-    ForCausalLM,
-    ForSequenceClassification,
-    ForTokenClassification,
-    ForQuestionAnswering,
-    # ForMultipleChoice,
-)
+    end
+end
+
+# RoBERTa For Masked LM
+struct HGFRobertaForMaskedLM <: HGFPreTrained{:roberta, :formaskedlm}
+    model::HGFRobertaModel
+    cls
+end
+@fluxlayershow HGFRobertaForMaskedLM
+
+(model::HGFRobertaForMaskedLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# RoBERTa For Causal LM
+struct HGFRobertaForCausalLM <: HGFPreTrained{:roberta, :forcausallm}
+    model::HGFRobertaModel
+    cls
+end
+@fluxlayershow HGFRobertaForCausalLM
+
+(model::HGFRobertaForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# RoBERTa For Sequence Classification
+struct HGFRobertaForSequenceClassification <: HGFPreTrained{:roberta, :forsequenceclassification}
+    model::HGFRobertaModel
+    cls
+end
+@fluxlayershow HGFRobertaForSequenceClassification
+
+(model::HGFRobertaForSequenceClassification)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# RoBERTa For Token Classification
+struct HGFRobertaForTokenClassification <: HGFPreTrained{:roberta, :fortokenclassification}
+    model::HGFRobertaModel
+    cls
+end
+@fluxlayershow HGFRobertaForTokenClassification
+
+(model::HGFRobertaForTokenClassification)(nt::NamedTuple) = model.cls(model.model(nt))
+
+# RoBERTa For Question Answering
+struct HGFRobertaForQuestionAnswering <: HGFPreTrained{:roberta, :forquestionanswering}
+    model::HGFRobertaModel
+    cls
+end
+@fluxlayershow HGFRobertaForQuestionAnswering
+
+(model::HGFRobertaForQuestionAnswering)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFRobertaPreTrainedModel = HGFPreTrained{:roberta}
+
 
 basemodelkey(::Type{<:HGFPreTrained{:roberta}}) = :roberta
 

@@ -17,6 +17,7 @@ end
 
 using CondaPkg
 using PythonCall
+using Pickle
 using Transformers
 
 # Parse CLI arguments
