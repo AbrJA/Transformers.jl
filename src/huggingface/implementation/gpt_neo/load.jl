@@ -8,10 +8,23 @@ using NeuralAttentionlib
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-@hgfdef :gpt_neo GPTNeo (
-    Model => (embed, decoder),
-    ForCausalLM,
-)
+struct HGFGPTNeoModel <: HGFPreTrained{:gpt_neo,:model}
+    embed
+    decoder
+end
+@fluxshow HGFGPTNeoModel
+
+(model::HGFGPTNeoModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
+
+struct HGFGPTNeoForCausalLM <: HGFPreTrained{:gpt_neo,:forcausallm}
+    model::HGFGPTNeoModel
+    cls
+end
+@fluxlayershow HGFGPTNeoForCausalLM
+
+(model::HGFGPTNeoForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFGPTNeoPreTrainedModel = HGFPreTrained{:gpt_neo}
 
 basemodelkey(::Type{<:HGFPreTrained{:gpt_neo}}) = :transformer
 

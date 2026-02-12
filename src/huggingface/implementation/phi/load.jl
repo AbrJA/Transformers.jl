@@ -7,10 +7,23 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-@hgfdef Phi (
-    Model => (embed, decoder),
-    ForCausalLM,
-)
+struct HGFPhiModel <: HGFPreTrained{:phi,:model}
+    embed
+    decoder
+end
+@fluxshow HGFPhiModel
+
+(model::HGFPhiModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
+
+struct HGFPhiForCausalLM <: HGFPreTrained{:phi,:forcausallm}
+    model::HGFPhiModel
+    cls
+end
+@fluxlayershow HGFPhiForCausalLM
+
+(model::HGFPhiForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFPhiPreTrainedModel = HGFPreTrained{:phi}
 
 basemodelkey(::Type{<:HGFPhiPreTrainedModel}) = :model
 

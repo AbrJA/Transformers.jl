@@ -6,22 +6,60 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore, l2norm
 
-@hgfdef CLIP (
-    TextModel => (embed, encoder, pooler),
-    VisionModel => (embed, encoder, pooler),
-    Model => begin
-        text_output = model.text_model(nt.text_input)
-        vision_output = model.vision_model(nt.vision_input)
-        nt2 = merge(Base.structdiff(nt, NamedTuple{(:text_input, :vision_input)}),
-            (embeddings=(text=l2norm(text_output.pooled), vision=l2norm(vision_output.pooled)),
-                text_output=text_output, vision_output=vision_output))
-        logits = clip_cosine_similarity(nt2.embeddings.text, nt2.embeddings.vision, model.logit_scale)
-        return merge(nt2, (logits=logits,))
-    end,
-    TextModelWithProjection => (embed, encoder, pooler),
-    VisionModelWithProjection => (embed, encoder, pooler),
-    # ForImageClassification,
-)
+struct HGFCLIPTextModel <: HGFPreTrained{:clip,:textmodel}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFCLIPTextModel
+
+(model::HGFCLIPTextModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
+
+struct HGFCLIPVisionModel <: HGFPreTrained{:clip,:visionmodel}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFCLIPVisionModel
+
+(model::HGFCLIPVisionModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
+
+struct HGFCLIPModel <: HGFPreTrained{:clip,:model}
+    text_model::HGFCLIPTextModel
+    vision_model::HGFCLIPVisionModel
+    logit_scale
+end
+@fluxshow HGFCLIPModel
+
+function (model::HGFCLIPModel)(nt::NamedTuple)
+    text_output = model.text_model(nt.text_input)
+    vision_output = model.vision_model(nt.vision_input)
+    nt2 = merge(Base.structdiff(nt, NamedTuple{(:text_input, :vision_input)}),
+        (embeddings=(text=l2norm(text_output.pooled), vision=l2norm(vision_output.pooled)),
+            text_output=text_output, vision_output=vision_output))
+    logits = clip_cosine_similarity(nt2.embeddings.text, nt2.embeddings.vision, model.logit_scale)
+    return merge(nt2, (logits=logits,))
+end
+
+struct HGFCLIPTextModelWithProjection <: HGFPreTrained{:clip,:textmodelwithprojection}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFCLIPTextModelWithProjection
+
+(model::HGFCLIPTextModelWithProjection)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
+
+struct HGFCLIPVisionModelWithProjection <: HGFPreTrained{:clip,:visionmodelwithprojection}
+    embed
+    encoder
+    pooler
+end
+@fluxshow HGFCLIPVisionModelWithProjection
+
+(model::HGFCLIPVisionModelWithProjection)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
+
+const HGFCLIPPreTrainedModel = HGFPreTrained{:clip}
 
 # clip does not follow the common model structure
 isbasemodel(::Type{<:HGFPreTrained{:clip}}) = true

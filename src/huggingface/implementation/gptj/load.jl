@@ -24,10 +24,24 @@ end
 
 
 
-@hgfdef GPTJ (
-    Model => (embed, decoder),
-    ForCausalLM,
-)
+struct HGFGPTJModel <: HGFPreTrained{:gptj,:model}
+    embed
+    decoder
+end
+@fluxshow HGFGPTJModel
+
+(model::HGFGPTJModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
+
+struct HGFGPTJForCausalLM <: HGFPreTrained{:gptj,:forcausallm}
+    model::HGFGPTJModel
+    cls
+end
+@fluxlayershow HGFGPTJForCausalLM
+
+(model::HGFGPTJForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFGPTJPreTrainedModel = HGFPreTrained{:gptj}
+
 
 basemodelkey(::Type{<:HGFPreTrained{:gptj}}) = :transformer
 

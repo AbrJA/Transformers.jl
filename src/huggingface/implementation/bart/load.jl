@@ -8,13 +8,16 @@ bart_pe_shift(x) = bart_pe_shift(size(x, 2))
 bart_pe_shift(len::Integer) = bart_pe_shift(Base.OneTo(len))
 bart_pe_shift(x::AbstractArray{<:Integer}) = x .+ 2
 
-@hgfdef Bart (
-    Model => (embed, seq2seq),
-    # ForConditionalGeneration,
-    # ForSequenceClassification,
-    # ForQuestionAnswering,
-    # ForCausalLM,
-)
+struct HGFBartModel <: HGFPreTrained{:bart,:model}
+    embed
+    seq2seq
+end
+@fluxshow HGFBartModel
+
+(model::HGFBartModel)(nt::NamedTuple) = model.seq2seq(model.embed(nt))
+
+const HGFBartPreTrainedModel = HGFPreTrained{:bart}
+
 
 basemodelkey(::Type{<:HGFBartPreTrainedModel}) = :model
 

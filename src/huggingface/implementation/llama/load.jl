@@ -18,11 +18,23 @@ Flux.@layer LLamaGated
 
 (m::LLamaGated)(x) = m.gate(x) .* m.dense(x)
 
-@hgfdef Llama (
-    Model => (embed, decoder),
-    ForCausalLM,
-    # ForSequenceClassification,
-)
+struct HGFLlamaModel <: HGFPreTrained{:llama,:model}
+    embed
+    decoder
+end
+@fluxshow HGFLlamaModel
+
+(model::HGFLlamaModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
+
+struct HGFLlamaForCausalLM <: HGFPreTrained{:llama,:forcausallm}
+    model::HGFLlamaModel
+    cls
+end
+@fluxlayershow HGFLlamaForCausalLM
+
+(model::HGFLlamaForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
+
+const HGFLlamaPreTrainedModel = HGFPreTrained{:llama}
 
 basemodelkey(::Type{<:HGFPreTrained{:llama}}) = :model
 
