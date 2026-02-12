@@ -23,17 +23,59 @@ function (m::DistilBertQA)(x)
 end
 (m::DistilBertQA)(nt::NamedTuple) = merge(nt, m(nt.hidden_state))
 
-@hgfdef DistilBert (
-    Model => begin
-        outputs = model.encoder(model.embed(nt))
-    end,
-    ForCausalLM,
-    ForMaskedLM,
-    ForSequenceClassification,
-    ForTokenClassification,
-    ForQuestionAnswering,
-    # ForMultipleChoice,
-)
+struct HGFDistilBertModel <: HGFPreTrained{:distilbert,:model}
+    embeddings
+    transformer
+end
+@fluxshow HGFDistilBertModel
+
+function (model::HGFDistilBertModel)(nt::NamedTuple)
+    outputs = model.transformer(model.embeddings(nt))
+    return outputs
+end
+
+struct HGFDistilBertForCausalLM <: HGFPreTrained{:distilbert,:forcausallm}
+    distilbert::HGFDistilBertModel
+    cls
+end
+@fluxlayershow HGFDistilBertForCausalLM
+
+(model::HGFDistilBertForCausalLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
+
+struct HGFDistilBertForMaskedLM <: HGFPreTrained{:distilbert,:formaskedlm}
+    distilbert::HGFDistilBertModel
+    cls
+end
+@fluxlayershow HGFDistilBertForMaskedLM
+
+(model::HGFDistilBertForMaskedLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
+
+struct HGFDistilBertForSequenceClassification <: HGFPreTrained{:distilbert,:forsequenceclassification}
+    distilbert::HGFDistilBertModel
+    classifier
+end
+@fluxlayershow HGFDistilBertForSequenceClassification
+
+(model::HGFDistilBertForSequenceClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
+
+struct HGFDistilBertForTokenClassification <: HGFPreTrained{:distilbert,:fortokenclassification}
+    distilbert::HGFDistilBertModel
+    classifier
+end
+@fluxlayershow HGFDistilBertForTokenClassification
+
+(model::HGFDistilBertForTokenClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
+
+struct HGFDistilBertForQuestionAnswering <: HGFPreTrained{:distilbert,:forquestionanswering}
+    distilbert::HGFDistilBertModel
+    qa_outputs
+end
+@fluxlayershow HGFDistilBertForQuestionAnswering
+
+(model::HGFDistilBertForQuestionAnswering)(nt::NamedTuple) = model.qa_outputs(model.distilbert(nt))
+
+# Helper to maintain compatibility
+const HGFDistilBertPreTrainedModel = HGFPreTrained{:distilbert}
 
 basemodelkey(::Type{<:HGFPreTrained{:distilbert}}) = :distilbert
 
@@ -242,6 +284,8 @@ function get_state_dict(m::Union{HGFDistilBertForCausalLM,HGFDistilBertForMasked
     get_state_dict(HGFDistilBertModel, m.cls.layer[3], state_dict, joinname(prefix, "vocab_projector"))
     return state_dict
 end
+
+
 
 function get_state_dict(m::Union{HGFDistilBertForSequenceClassification,HGFDistilBertForTokenClassification}, state_dict, prefix)
     get_state_dict(m.model, state_dict, joinname(prefix, "distilbert"))
