@@ -13,7 +13,8 @@ export @hgf_str,
     load_tokenizer,
     load_state_dict,
     load_hgf_pretrained,
-    save_model
+    save_model,
+    _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname, _get_model_type
 
 import ..TransformerInterfaces: load_model, load_config, load_tokenizer, save_model
 

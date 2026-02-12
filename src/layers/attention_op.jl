@@ -112,12 +112,17 @@ struct FlexAttenOp{Mode, Causal, Scaled, Arg, F} <: AbstractAttenOp
     arg::Arg
     head::Int
     p::F
-    function FlexAttenOp{Mode, Causal, Scaled, Arg, F}(arg::Arg, head::Int, p::F) where {Mode, Causal, Scaled, Arg, F}
-        return new{Mode, Causal, Scaled, Arg, F}(arg, head, p)
-    end
+    FlexAttenOp{Mode, Causal, Scaled, Arg, F}(arg::Arg, head::Int, p::F) where {Mode, Causal, Scaled, Arg, F} = new{Mode, Causal, Scaled, Arg, F}(arg, head, p)
 end
-FlexAttenOp{Mode, Causal, Scaled}(arg::Arg, head::Int, p::F) where {Mode, Causal, Scaled, Arg, F} =
-    FlexAttenOp{Mode, Causal, Scaled, Arg, F}(arg, head, p)
+
+# Use a non-parameterized function to break recursion
+function create_flex_atten_op(Mode, Causal, Scaled, arg, head::Int, p)
+    return FlexAttenOp{Mode, Causal, Scaled, typeof(arg), typeof(p)}(arg, head, p)
+end
+
+function (::Type{FlexAttenOp{Mode, Causal, Scaled}})(arg, head::Int, p) where {Mode, Causal, Scaled}
+    return create_flex_atten_op(Mode, Causal, Scaled, arg, head, p)
+end
 
 function NeuralAttentionlib.get_attention_func(::FlexAttenOp{Mode, Causal, Scaled}) where {Mode, Causal, Scaled}
     if Mode === :RoPE
@@ -149,8 +154,8 @@ function NeuralAttentionlib.get_attention_func_args(op::FlexAttenOp{Mode, Causal
     end
 end
 
-set_dropout(op::FlexAttenOp{Mode, Causal, Scaled}, p) where {Mode, Causal, Scaled} =
-    FlexAttenOp{Mode, Causal, Scaled}(op.arg, op.head, p)
+set_dropout(op::FlexAttenOp{Mode, Causal, Scaled, Arg, F}, p) where {Mode, Causal, Scaled, Arg, F} =
+    FlexAttenOp{Mode, Causal, Scaled, Arg, typeof(p)}(op.arg, op.head, p)
 
 # Aliases
 

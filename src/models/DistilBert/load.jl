@@ -5,6 +5,7 @@ using Functors
 using FillArrays
 using NNlib
 using Static
+using ..HuggingFaceModels: joinname, getweight, weight_init, zero_init
 using Flux
 
 using NeuralAttentionlib
@@ -28,6 +29,7 @@ struct HGFDistilBertModel{E,T} <: HGFPreTrained{:distilbert,:model}
     embed::E
     encoder::T
 end
+@functor HGFDistilBertModel
 @fluxshow HGFDistilBertModel
 
 function (model::HGFDistilBertModel)(nt::NamedTuple)
@@ -39,6 +41,7 @@ struct HGFDistilBertForCausalLM{M,C} <: HGFPreTrained{:distilbert,:forcausallm}
     distilbert::M
     cls::C
 end
+@functor HGFDistilBertForCausalLM
 @fluxlayershow HGFDistilBertForCausalLM
 
 (model::HGFDistilBertForCausalLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
@@ -47,6 +50,7 @@ struct HGFDistilBertForMaskedLM{M,C} <: HGFPreTrained{:distilbert,:formaskedlm}
     distilbert::M
     cls::C
 end
+@functor HGFDistilBertForMaskedLM
 @fluxlayershow HGFDistilBertForMaskedLM
 
 (model::HGFDistilBertForMaskedLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
@@ -55,6 +59,7 @@ struct HGFDistilBertForSequenceClassification{M,C} <: HGFPreTrained{:distilbert,
     distilbert::M
     classifier::C
 end
+@functor HGFDistilBertForSequenceClassification
 @fluxlayershow HGFDistilBertForSequenceClassification
 
 (model::HGFDistilBertForSequenceClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
@@ -63,6 +68,7 @@ struct HGFDistilBertForTokenClassification{M,C} <: HGFPreTrained{:distilbert,:fo
     distilbert::M
     classifier::C
 end
+@functor HGFDistilBertForTokenClassification
 @fluxlayershow HGFDistilBertForTokenClassification
 
 (model::HGFDistilBertForTokenClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
@@ -71,6 +77,7 @@ struct HGFDistilBertForQuestionAnswering{M,C} <: HGFPreTrained{:distilbert,:forq
     distilbert::M
     qa_outputs::C
 end
+@functor HGFDistilBertForQuestionAnswering
 @fluxlayershow HGFDistilBertForQuestionAnswering
 
 (model::HGFDistilBertForQuestionAnswering)(nt::NamedTuple) = model.qa_outputs(model.distilbert(nt))

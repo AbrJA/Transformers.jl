@@ -3,6 +3,7 @@ using ..TransformerLayers: CompositeEmbedding, SelfAttention, CrossAttention, Mu
 using Functors
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 bart_pe_shift(x) = bart_pe_shift(size(x, 2))
 bart_pe_shift(len::Integer) = bart_pe_shift(Base.OneTo(len))
@@ -10,11 +11,12 @@ bart_pe_shift(x::AbstractArray{<:Integer}) = x .+ 2
 
 struct HGFBartModel{E,S} <: HGFPreTrained{:bart,:model}
     embed::E
-    seq2seq::S
+    decoder::S
 end
+@functor HGFBartModel
 @fluxshow HGFBartModel
 
-(model::HGFBartModel)(nt::NamedTuple) = model.seq2seq(model.embed(nt))
+(model::HGFBartModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
 const HGFBartPreTrainedModel = HGFPreTrained{:bart}
 
@@ -24,8 +26,8 @@ basemodelkey(::Type{<:HGFBartPreTrainedModel}) = :model
 function load_model(_type::Type{HGFBartModel}, cfg, state_dict, prefix)
     embed = load_model(_type, CompositeEmbedding, cfg, state_dict, prefix)
     encoder = load_model(_type, TransformerBlock, cfg, state_dict, joinname(prefix, "encoder"))
-    decoder = load_model(_type, TransformerDecoderBlock, cfg, state_dict, joinname(prefix, "decoder"))
-    seq2seq = Seq2Seq(encoder, decoder)
+    decoder_block = load_model(_type, TransformerDecoderBlock, cfg, state_dict, joinname(prefix, "decoder"))
+    seq2seq = Seq2Seq(encoder, decoder_block)
     return HGFBartModel(embed, seq2seq)
 end
 

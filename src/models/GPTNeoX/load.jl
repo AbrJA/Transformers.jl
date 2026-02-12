@@ -6,6 +6,7 @@ using Static
 
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 include("./attention.jl")
 
@@ -67,6 +68,7 @@ struct HGFGPTNeoXModel{E,D} <: HGFPreTrained{:gpt_neox,:model}
     embed::E
     decoder::D
 end
+@functor HGFGPTNeoXModel
 @fluxshow HGFGPTNeoXModel
 
 (model::HGFGPTNeoXModel)(nt::NamedTuple) = model.decoder(model.embed(nt))

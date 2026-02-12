@@ -45,6 +45,7 @@ struct HGFBertModel{E,En,P} <: HGFPreTrained{:bert,:model}
     encoder::En
     pooler::P
 end
+@functor HGFBertModel
 @fluxshow HGFBertModel
 
 function (model::HGFBertModel)(nt::NamedTuple)
@@ -61,6 +62,7 @@ struct HGFBertForPreTraining{M,C} <: HGFPreTrained{:bert,:forpretraining}
     model::M
     cls::C
 end
+@functor HGFBertForPreTraining
 @fluxlayershow HGFBertForPreTraining
 
 (model::HGFBertForPreTraining)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -70,6 +72,7 @@ struct HGFBertLMHeadModel{M,C} <: HGFPreTrained{:bert,:lmheadmodel}
     model::M
     cls::C
 end
+@functor HGFBertLMHeadModel
 @fluxlayershow HGFBertLMHeadModel
 
 (model::HGFBertLMHeadModel)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -79,6 +82,7 @@ struct HGFBertForMaskedLM{M,C} <: HGFPreTrained{:bert,:formaskedlm}
     model::M
     cls::C
 end
+@functor HGFBertForMaskedLM
 @fluxlayershow HGFBertForMaskedLM
 
 (model::HGFBertForMaskedLM)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -88,6 +92,7 @@ struct HGFBertForNextSentencePrediction{M,C} <: HGFPreTrained{:bert,:fornextsent
     model::M
     cls::C
 end
+@functor HGFBertForNextSentencePrediction
 @fluxlayershow HGFBertForNextSentencePrediction
 
 (model::HGFBertForNextSentencePrediction)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -97,6 +102,7 @@ struct HGFBertForSequenceClassification{M,C} <: HGFPreTrained{:bert,:forsequence
     model::M
     cls::C
 end
+@functor HGFBertForSequenceClassification
 @fluxlayershow HGFBertForSequenceClassification
 
 (model::HGFBertForSequenceClassification)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -106,6 +112,7 @@ struct HGFBertForTokenClassification{M,C} <: HGFPreTrained{:bert,:fortokenclassi
     model::M
     cls::C
 end
+@functor HGFBertForTokenClassification
 @fluxlayershow HGFBertForTokenClassification
 
 (model::HGFBertForTokenClassification)(nt::NamedTuple) = model.cls(model.model(nt))
@@ -115,6 +122,7 @@ struct HGFBertForQuestionAnswering{M,C} <: HGFPreTrained{:bert,:forquestionanswe
     model::M
     cls::C
 end
+@functor HGFBertForQuestionAnswering
 @fluxlayershow HGFBertForQuestionAnswering
 
 (model::HGFBertForQuestionAnswering)(nt::NamedTuple) = model.cls(model.model(nt))

@@ -6,11 +6,13 @@ using Static
 
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 struct HGFBloomModel{E,D} <: HGFPreTrained{:bloom,:model}
     embed::E
     decoder::D
 end
+@functor HGFBloomModel
 @fluxshow HGFBloomModel
 
 (model::HGFBloomModel)(nt::NamedTuple) = model.decoder(model.embed(nt))

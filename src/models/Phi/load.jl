@@ -7,6 +7,7 @@ using Flux
 
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 struct ParallelPreNormTransformerBlock{A,F,N} <: TransformerLayers.AbstractTransformerBlock
     attention::A
@@ -27,6 +28,7 @@ struct HGFPhiModel{E,D} <: HGFPreTrained{:phi,:model}
     embed::E
     decoder::D
 end
+@functor HGFPhiModel
 @fluxshow HGFPhiModel
 
 (model::HGFPhiModel)(nt::NamedTuple) = model.decoder(model.embed(nt))

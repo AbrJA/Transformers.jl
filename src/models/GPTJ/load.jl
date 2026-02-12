@@ -29,6 +29,7 @@ struct HGFGPTJModel{E,D} <: HGFPreTrained{:gptj,:model}
     embed::E
     decoder::D
 end
+@functor HGFGPTJModel
 @fluxshow HGFGPTJModel
 
 (model::HGFGPTJModel)(nt::NamedTuple) = model.decoder(model.embed(nt))

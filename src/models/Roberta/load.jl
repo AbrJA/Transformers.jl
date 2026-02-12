@@ -9,6 +9,8 @@ using Flux
 
 using NeuralAttentionlib
 using NeuralAttentionlib: $, WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
+using ..Bert: HGFBertModel
 
 # RoBERTa Model
 struct HGFRobertaModel{E, En, P} <: HGFPreTrained{:roberta, :model}
@@ -16,6 +18,7 @@ struct HGFRobertaModel{E, En, P} <: HGFPreTrained{:roberta, :model}
     encoder::En
     pooler::P
 end
+@functor HGFRobertaModel
 @fluxshow HGFRobertaModel
 
 function (model::HGFRobertaModel)(nt::NamedTuple)

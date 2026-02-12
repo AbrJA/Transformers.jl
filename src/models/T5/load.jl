@@ -2,6 +2,7 @@ using ..TransformerLayers
 using ..TransformerLayers: CompositeEmbedding, @fluxshow, @fluxlayershow
 using Functors
 using Flux
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname, _get_model_type
 
 
 struct T5Gated{G,L}
@@ -16,13 +17,14 @@ Flux.@layer T5Gated
 # T5 Model
 struct HGFT5Model{E,S} <: HGFPreTrained{:t5,:model}
     embed::E
-    seq2seq::S
+    decoder::S
 end
+@functor HGFT5Model
 @fluxshow HGFT5Model
 
 function (model::HGFT5Model)(nt::NamedTuple)
     embs = model.embed(nt)
-    outputs = model.seq2seq(embs)
+    outputs = model.decoder(embs)
     encoder_output = Base.structdiff(outputs.encoder_output, NamedTuple{(:position_bias,)})
     decoder_output = Base.structdiff(outputs.decoder_output, NamedTuple{(:position_bias,)})
     return merge(outputs, (; encoder_output, decoder_output))
@@ -42,6 +44,7 @@ struct HGFT5EncoderModel{E,En} <: HGFPreTrained{:t5,:encodermodel}
     embed::E
     encoder::En
 end
+@functor HGFT5EncoderModel
 @fluxshow HGFT5EncoderModel
 
 function (model::HGFT5EncoderModel)(nt::NamedTuple)

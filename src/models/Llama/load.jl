@@ -6,6 +6,7 @@ using Static
 
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 include("attention.jl")
 
@@ -22,6 +23,7 @@ struct HGFLlamaModel{E,D} <: HGFPreTrained{:llama,:model}
     embed::E
     decoder::D
 end
+@functor HGFLlamaModel
 @fluxshow HGFLlamaModel
 
 (model::HGFLlamaModel)(nt::NamedTuple) = model.decoder(model.embed(nt))

@@ -10,7 +10,7 @@ struct HGFGPT2Model{E,D} <: HGFPreTrained{:gpt2,:model}
     embed::E
     decoder::D
 end
-Flux.@layer HGFGPT2Model
+@functor HGFGPT2Model
 @fluxshow HGFGPT2Model
 
 (model::HGFGPT2Model)(nt::NamedTuple) = model.decoder(model.embed(nt))
@@ -19,7 +19,7 @@ struct HGFGPT2LMHeadModel{M,C} <: HGFPreTrained{:gpt2,:lmheadmodel}
     model::M
     cls::C
 end
-Flux.@layer HGFGPT2LMHeadModel
+@functor HGFGPT2LMHeadModel
 @fluxlayershow HGFGPT2LMHeadModel
 
 (model::HGFGPT2LMHeadModel)(nt::NamedTuple) = model.cls(model.model(nt))

@@ -6,12 +6,14 @@ using Flux
 
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore, l2norm
+using ..HuggingFaceModels: _load_layernorm, _load_dense, weight_init, zero_init, getweight, joinname
 
 struct HGFCLIPTextModel{E,En,P} <: HGFPreTrained{:clip,:textmodel}
     embed::E
     encoder::En
     pooler::P
 end
+@functor HGFCLIPTextModel
 @fluxshow HGFCLIPTextModel
 
 (model::HGFCLIPTextModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
@@ -21,6 +23,7 @@ struct HGFCLIPVisionModel{E,En,P} <: HGFPreTrained{:clip,:visionmodel}
     encoder::En
     pooler::P
 end
+@functor HGFCLIPVisionModel
 @fluxshow HGFCLIPVisionModel
 
 (model::HGFCLIPVisionModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
@@ -30,6 +33,7 @@ struct HGFCLIPModel{T,V,L} <: HGFPreTrained{:clip,:model}
     vision_model::V
     logit_scale::L
 end
+@functor HGFCLIPModel
 @fluxshow HGFCLIPModel
 
 function (model::HGFCLIPModel)(nt::NamedTuple)
