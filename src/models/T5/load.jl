@@ -14,9 +14,9 @@ Flux.@layer T5Gated
 (g::T5Gated)(x) = g.gate(x) .* g.linear(x)
 
 # T5 Model
-struct HGFT5Model <: HGFPreTrained{:t5,:model}
-    embed
-    seq2seq
+struct HGFT5Model{E,S} <: HGFPreTrained{:t5,:model}
+    embed::E
+    seq2seq::S
 end
 @fluxshow HGFT5Model
 
@@ -29,18 +29,18 @@ function (model::HGFT5Model)(nt::NamedTuple)
 end
 
 # T5 For Conditional Generation
-struct HGFT5ForConditionalGeneration <: HGFPreTrained{:t5,:forconditionalgeneration}
-    model::HGFT5Model
-    cls
+struct HGFT5ForConditionalGeneration{M,C} <: HGFPreTrained{:t5,:forconditionalgeneration}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFT5ForConditionalGeneration
 
 (model::HGFT5ForConditionalGeneration)(nt::NamedTuple) = model.cls(model.model(nt))
 
 # T5 Encoder Model
-struct HGFT5EncoderModel <: HGFPreTrained{:t5,:encodermodel}
-    embed
-    encoder
+struct HGFT5EncoderModel{E,En} <: HGFPreTrained{:t5,:encodermodel}
+    embed::E
+    encoder::En
 end
 @fluxshow HGFT5EncoderModel
 

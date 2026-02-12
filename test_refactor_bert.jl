@@ -5,7 +5,7 @@ using Test
 
 @testset "Bert Refactor Verification" begin
     # Create a dummy config
-    cfg = HGFConfig{:bert}(
+    cfg = HuggingFace.HGFConfig{:bert}(
         (hidden_size=32, vocab_size=100, num_hidden_layers=2,
         num_attention_heads=4, intermediate_size=64,
         max_position_embeddings=50, type_vocab_size=2,

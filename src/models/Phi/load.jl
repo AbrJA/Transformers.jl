@@ -23,17 +23,17 @@ function (b::ParallelPreNormTransformerBlock)(nt::NamedTuple)
     return TransformerLayers.return_hidden_state(a, hidden_state)
 end
 
-struct HGFPhiModel <: HGFPreTrained{:phi,:model}
-    embed
-    decoder
+struct HGFPhiModel{E,D} <: HGFPreTrained{:phi,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFPhiModel
 
 (model::HGFPhiModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFPhiForCausalLM <: HGFPreTrained{:phi,:forcausallm}
-    model::HGFPhiModel
-    cls
+struct HGFPhiForCausalLM{M,C} <: HGFPreTrained{:phi,:forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFPhiForCausalLM
 

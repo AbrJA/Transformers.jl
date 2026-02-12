@@ -24,9 +24,9 @@ function (m::DistilBertQA)(x)
 end
 (m::DistilBertQA)(nt::NamedTuple) = merge(nt, m(nt.hidden_state))
 
-struct HGFDistilBertModel <: HGFPreTrained{:distilbert,:model}
-    embeddings
-    transformer
+struct HGFDistilBertModel{E,T} <: HGFPreTrained{:distilbert,:model}
+    embeddings::E
+    transformer::T
 end
 @fluxshow HGFDistilBertModel
 
@@ -35,41 +35,41 @@ function (model::HGFDistilBertModel)(nt::NamedTuple)
     return outputs
 end
 
-struct HGFDistilBertForCausalLM <: HGFPreTrained{:distilbert,:forcausallm}
-    distilbert::HGFDistilBertModel
-    cls
+struct HGFDistilBertForCausalLM{M,C} <: HGFPreTrained{:distilbert,:forcausallm}
+    distilbert::M
+    cls::C
 end
 @fluxlayershow HGFDistilBertForCausalLM
 
 (model::HGFDistilBertForCausalLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
 
-struct HGFDistilBertForMaskedLM <: HGFPreTrained{:distilbert,:formaskedlm}
-    distilbert::HGFDistilBertModel
-    cls
+struct HGFDistilBertForMaskedLM{M,C} <: HGFPreTrained{:distilbert,:formaskedlm}
+    distilbert::M
+    cls::C
 end
 @fluxlayershow HGFDistilBertForMaskedLM
 
 (model::HGFDistilBertForMaskedLM)(nt::NamedTuple) = model.cls(model.distilbert(nt))
 
-struct HGFDistilBertForSequenceClassification <: HGFPreTrained{:distilbert,:forsequenceclassification}
-    distilbert::HGFDistilBertModel
-    classifier
+struct HGFDistilBertForSequenceClassification{M,C} <: HGFPreTrained{:distilbert,:forsequenceclassification}
+    distilbert::M
+    classifier::C
 end
 @fluxlayershow HGFDistilBertForSequenceClassification
 
 (model::HGFDistilBertForSequenceClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
 
-struct HGFDistilBertForTokenClassification <: HGFPreTrained{:distilbert,:fortokenclassification}
-    distilbert::HGFDistilBertModel
-    classifier
+struct HGFDistilBertForTokenClassification{M,C} <: HGFPreTrained{:distilbert,:fortokenclassification}
+    distilbert::M
+    classifier::C
 end
 @fluxlayershow HGFDistilBertForTokenClassification
 
 (model::HGFDistilBertForTokenClassification)(nt::NamedTuple) = model.classifier(model.distilbert(nt))
 
-struct HGFDistilBertForQuestionAnswering <: HGFPreTrained{:distilbert,:forquestionanswering}
-    distilbert::HGFDistilBertModel
-    qa_outputs
+struct HGFDistilBertForQuestionAnswering{M,C} <: HGFPreTrained{:distilbert,:forquestionanswering}
+    distilbert::M
+    qa_outputs::C
 end
 @fluxlayershow HGFDistilBertForQuestionAnswering
 

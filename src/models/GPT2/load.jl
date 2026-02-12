@@ -6,17 +6,17 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-struct HGFGPT2Model <: HGFPreTrained{:gpt2,:model}
-    embed
-    decoder
+struct HGFGPT2Model{E,D} <: HGFPreTrained{:gpt2,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFGPT2Model
 
 (model::HGFGPT2Model)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFGPT2LMHeadModel <: HGFPreTrained{:gpt2,:lmheadmodel}
-    model::HGFGPT2Model
-    cls
+struct HGFGPT2LMHeadModel{M,C} <: HGFPreTrained{:gpt2,:lmheadmodel}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFGPT2LMHeadModel
 

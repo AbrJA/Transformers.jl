@@ -25,17 +25,17 @@ end
 
 
 
-struct HGFGPTJModel <: HGFPreTrained{:gptj,:model}
-    embed
-    decoder
+struct HGFGPTJModel{E,D} <: HGFPreTrained{:gptj,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFGPTJModel
 
 (model::HGFGPTJModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFGPTJForCausalLM <: HGFPreTrained{:gptj,:forcausallm}
-    model::HGFGPTJModel
-    cls
+struct HGFGPTJForCausalLM{M,C} <: HGFPreTrained{:gptj,:forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFGPTJForCausalLM
 

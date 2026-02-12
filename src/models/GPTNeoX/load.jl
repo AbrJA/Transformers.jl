@@ -63,17 +63,17 @@ function Base.show(io::IO, layer::GPTNeoXSplit)
 end
 
 
-struct HGFGPTNeoXModel <: HGFPreTrained{:gpt_neox,:model}
-    embed
-    decoder
+struct HGFGPTNeoXModel{E,D} <: HGFPreTrained{:gpt_neox,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFGPTNeoXModel
 
 (model::HGFGPTNeoXModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFGPTNeoXForCausalLM <: HGFPreTrained{:gpt_neox,:forcausallm}
-    model::HGFGPTNeoXModel
-    cls
+struct HGFGPTNeoXForCausalLM{M,C} <: HGFPreTrained{:gpt_neox,:forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFGPTNeoXForCausalLM
 

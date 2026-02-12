@@ -18,17 +18,17 @@ Flux.@layer LLamaGated
 
 (m::LLamaGated)(x) = m.gate(x) .* m.dense(x)
 
-struct HGFLlamaModel <: HGFPreTrained{:llama,:model}
-    embed
-    decoder
+struct HGFLlamaModel{E,D} <: HGFPreTrained{:llama,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFLlamaModel
 
 (model::HGFLlamaModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFLlamaForCausalLM <: HGFPreTrained{:llama,:forcausallm}
-    model::HGFLlamaModel
-    cls
+struct HGFLlamaForCausalLM{M,C} <: HGFPreTrained{:llama,:forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFLlamaForCausalLM
 

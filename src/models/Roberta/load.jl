@@ -11,10 +11,10 @@ using NeuralAttentionlib
 using NeuralAttentionlib: $, WithScore
 
 # RoBERTa Model
-struct HGFRobertaModel <: HGFPreTrained{:roberta, :model}
-    embed
-    encoder
-    pooler
+struct HGFRobertaModel{E, En, P} <: HGFPreTrained{:roberta, :model}
+    embed::E
+    encoder::En
+    pooler::P
 end
 @fluxshow HGFRobertaModel
 
@@ -28,45 +28,45 @@ function (model::HGFRobertaModel)(nt::NamedTuple)
 end
 
 # RoBERTa For Masked LM
-struct HGFRobertaForMaskedLM <: HGFPreTrained{:roberta, :formaskedlm}
-    model::HGFRobertaModel
-    cls
+struct HGFRobertaForMaskedLM{M, C} <: HGFPreTrained{:roberta, :formaskedlm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFRobertaForMaskedLM
 
 (model::HGFRobertaForMaskedLM)(nt::NamedTuple) = model.cls(model.model(nt))
 
 # RoBERTa For Causal LM
-struct HGFRobertaForCausalLM <: HGFPreTrained{:roberta, :forcausallm}
-    model::HGFRobertaModel
-    cls
+struct HGFRobertaForCausalLM{M, C} <: HGFPreTrained{:roberta, :forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFRobertaForCausalLM
 
 (model::HGFRobertaForCausalLM)(nt::NamedTuple) = model.cls(model.model(nt))
 
 # RoBERTa For Sequence Classification
-struct HGFRobertaForSequenceClassification <: HGFPreTrained{:roberta, :forsequenceclassification}
-    model::HGFRobertaModel
-    cls
+struct HGFRobertaForSequenceClassification{M, C} <: HGFPreTrained{:roberta, :forsequenceclassification}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFRobertaForSequenceClassification
 
 (model::HGFRobertaForSequenceClassification)(nt::NamedTuple) = model.cls(model.model(nt))
 
 # RoBERTa For Token Classification
-struct HGFRobertaForTokenClassification <: HGFPreTrained{:roberta, :fortokenclassification}
-    model::HGFRobertaModel
-    cls
+struct HGFRobertaForTokenClassification{M, C} <: HGFPreTrained{:roberta, :fortokenclassification}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFRobertaForTokenClassification
 
 (model::HGFRobertaForTokenClassification)(nt::NamedTuple) = model.cls(model.model(nt))
 
 # RoBERTa For Question Answering
-struct HGFRobertaForQuestionAnswering <: HGFPreTrained{:roberta, :forquestionanswering}
-    model::HGFRobertaModel
-    cls
+struct HGFRobertaForQuestionAnswering{M, C} <: HGFPreTrained{:roberta, :forquestionanswering}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFRobertaForQuestionAnswering
 

@@ -7,28 +7,28 @@ using Flux
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore, l2norm
 
-struct HGFCLIPTextModel <: HGFPreTrained{:clip,:textmodel}
-    embed
-    encoder
-    pooler
+struct HGFCLIPTextModel{E,En,P} <: HGFPreTrained{:clip,:textmodel}
+    embed::E
+    encoder::En
+    pooler::P
 end
 @fluxshow HGFCLIPTextModel
 
 (model::HGFCLIPTextModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
 
-struct HGFCLIPVisionModel <: HGFPreTrained{:clip,:visionmodel}
-    embed
-    encoder
-    pooler
+struct HGFCLIPVisionModel{E,En,P} <: HGFPreTrained{:clip,:visionmodel}
+    embed::E
+    encoder::En
+    pooler::P
 end
 @fluxshow HGFCLIPVisionModel
 
 (model::HGFCLIPVisionModel)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
 
-struct HGFCLIPModel <: HGFPreTrained{:clip,:model}
-    text_model::HGFCLIPTextModel
-    vision_model::HGFCLIPVisionModel
-    logit_scale
+struct HGFCLIPModel{T,V,L} <: HGFPreTrained{:clip,:model}
+    text_model::T
+    vision_model::V
+    logit_scale::L
 end
 @fluxshow HGFCLIPModel
 
@@ -42,19 +42,19 @@ function (model::HGFCLIPModel)(nt::NamedTuple)
     return merge(nt2, (logits=logits,))
 end
 
-struct HGFCLIPTextModelWithProjection <: HGFPreTrained{:clip,:textmodelwithprojection}
-    embed
-    encoder
-    pooler
+struct HGFCLIPTextModelWithProjection{E,En,P} <: HGFPreTrained{:clip,:textmodelwithprojection}
+    embed::E
+    encoder::En
+    pooler::P
 end
 @fluxshow HGFCLIPTextModelWithProjection
 
 (model::HGFCLIPTextModelWithProjection)(nt::NamedTuple) = model.pooler(model.encoder(model.embed(nt)))
 
-struct HGFCLIPVisionModelWithProjection <: HGFPreTrained{:clip,:visionmodelwithprojection}
-    embed
-    encoder
-    pooler
+struct HGFCLIPVisionModelWithProjection{E,En,P} <: HGFPreTrained{:clip,:visionmodelwithprojection}
+    embed::E
+    encoder::En
+    pooler::P
 end
 @fluxshow HGFCLIPVisionModelWithProjection
 

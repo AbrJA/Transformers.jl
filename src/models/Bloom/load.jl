@@ -7,17 +7,17 @@ using Static
 using NeuralAttentionlib
 using NeuralAttentionlib: WithScore
 
-struct HGFBloomModel <: HGFPreTrained{:bloom,:model}
-    embed
-    decoder
+struct HGFBloomModel{E,D} <: HGFPreTrained{:bloom,:model}
+    embed::E
+    decoder::D
 end
 @fluxshow HGFBloomModel
 
 (model::HGFBloomModel)(nt::NamedTuple) = model.decoder(model.embed(nt))
 
-struct HGFBloomForCausalLM <: HGFPreTrained{:bloom,:forcausallm}
-    model::HGFBloomModel
-    cls
+struct HGFBloomForCausalLM{M,C} <: HGFPreTrained{:bloom,:forcausallm}
+    model::M
+    cls::C
 end
 @fluxlayershow HGFBloomForCausalLM
 

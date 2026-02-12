@@ -8,9 +8,9 @@ bart_pe_shift(x) = bart_pe_shift(size(x, 2))
 bart_pe_shift(len::Integer) = bart_pe_shift(Base.OneTo(len))
 bart_pe_shift(x::AbstractArray{<:Integer}) = x .+ 2
 
-struct HGFBartModel <: HGFPreTrained{:bart,:model}
-    embed
-    seq2seq
+struct HGFBartModel{E,S} <: HGFPreTrained{:bart,:model}
+    embed::E
+    seq2seq::S
 end
 @fluxshow HGFBartModel
 
