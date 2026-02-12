@@ -131,7 +131,7 @@ function load_model(_type::Type{<:Union{HGFRobertaForCausalLM, HGFRobertaForMask
         end
     end
     bias = getweight(zero_init(vocab_size), Array, state_dict, joinname(prefix, "lm_head.bias"))
-    lmhead = TransformerLayers.Chain(TransformerLayers.Dense(gelu, head_weight, head_bias), head_ln,
+    lmhead = TransformerLayers.Chain(TransformerLayers.Dense(NNlib.gelu, head_weight, head_bias), head_ln,
                           TransformerLayers.EmbedDecoder(TransformerLayers.Embed(embedding), bias))
     return _type(model, TransformerLayers.Branch{(:logit,), (:hidden_state,)}(lmhead))
 end
