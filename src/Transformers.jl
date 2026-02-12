@@ -3,9 +3,10 @@ module Transformers
 using Flux
 
 # Core Interfaces
-include("Interfaces.jl")
-using .Interfaces
-export Interfaces
+# Core Interfaces
+include("TransformerInterfaces.jl")
+using .TransformerInterfaces
+export TransformerInterfaces
 
 # Re-export core modules
 include("TransformerLayers.jl")

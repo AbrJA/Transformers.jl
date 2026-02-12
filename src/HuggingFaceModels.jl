@@ -2,7 +2,7 @@ module HuggingFaceModels
 
 using ..TransformerLayers
 using ..TransformerTokenizers
-using ..Interfaces
+using ..TransformerInterfaces
 
 using HuggingFaceApi
 using Flux
@@ -15,7 +15,7 @@ export @hgf_str,
     load_hgf_pretrained,
     save_model
 
-import ..Interfaces: load_model, load_config, load_tokenizer, save_model
+import ..TransformerInterfaces: load_model, load_config, load_tokenizer, save_model
 
 include("huggingface/utils.jl")
 include("huggingface/download.jl")

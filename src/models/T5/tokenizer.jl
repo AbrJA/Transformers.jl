@@ -1,13 +1,13 @@
-using ..Interfaces
+using ..TransformerInterfaces
 
 struct T5Tokenizer <: AbstractTransformerTokenizer
     sp
     extra::Dict{Symbol,Any}
 end
 
-Interfaces.get_vocab(t::T5Tokenizer) = t.sp
-Interfaces.get_eos_id(t::T5Tokenizer) = 1
-Interfaces.get_pad_id(t::T5Tokenizer) = 0
+TransformerInterfaces.get_vocab(t::T5Tokenizer) = t.sp
+TransformerInterfaces.get_eos_id(t::T5Tokenizer) = 1
+TransformerInterfaces.get_pad_id(t::T5Tokenizer) = 0
 # T5 doesn't have a bos token, usually using pad as start token
 
 function load_tokenizer(::Val{:t5}, model_name::AbstractString; possible_files=nothing, kws...)

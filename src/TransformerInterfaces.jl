@@ -1,4 +1,4 @@
-module Interfaces
+module TransformerInterfaces
 
 using ..Transformers: Transformers
 
