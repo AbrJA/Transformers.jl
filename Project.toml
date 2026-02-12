@@ -28,7 +28,6 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 NeuralAttentionlib = "12afc1b8-fad6-47e1-9132-84abc478905f"
-Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PrimitiveOneHot = "13d12f88-f12b-451e-9b9f-13b97e01cc85"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -39,7 +38,6 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StringViews = "354b36f9-a18e-4713-926e-db85100087ba"
 StructWalk = "31cdf514-beb7-4750-89db-dda9d2eb8d3d"
 TextEncodeBase = "f92c20c0-9f2a-4705-8116-881385faba05"
-Tricks = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
 Unicode = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 ValSplit = "0625e100-946b-11ec-09cd-6328dd093154"
 WordTokenizers = "796a5d58-b03d-544a-977e-18100b691f6e"
@@ -49,11 +47,13 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
 
 [extensions]
 TransformersAMDGPUExt = "AMDGPU"
 TransformersCUDAExt = "CUDA"
 TransformersMetalExt = "Metal"
+TransformersPickleExt = "Pickle"
 
 [compat]
 AMDGPU = "0.9, 1"
@@ -87,7 +87,7 @@ Statistics = "1"
 StringViews = "1"
 StructWalk = "0.2"
 TextEncodeBase = "0.8.1"
-Tricks = "0.1.8"
+
 ValSplit = "0.1"
 WordTokenizers = "0.5.6"
 Zygote = "0.6.59, 0.7"
@@ -99,6 +99,7 @@ ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
+Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
 
 [targets]
-test = ["Test", "Logging", "ZipFile", "CUDA", "ChainRulesTestUtils"]
+test = ["Test", "Logging", "ZipFile", "CUDA", "ChainRulesTestUtils", "Pickle"]

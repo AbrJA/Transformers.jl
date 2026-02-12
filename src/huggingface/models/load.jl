@@ -4,7 +4,7 @@ import ..TransformerLayers
 using Flux
 using Flux: Losses
 using NNlib
-using Tricks
+
 using StructWalk
 using ChainRulesCore
 using DataStructures: OrderedDict
@@ -29,7 +29,7 @@ function hgf_model_forward end
 function hgf_model_loss end
 
 function (model::HGFPreTrained)(nt::NamedTuple)
-    if static_hasmethod(hgf_model_loss, Tuple{typeof(model)}) && haskey(nt, :label)
+    if hasmethod(hgf_model_loss, (typeof(model),)) && haskey(nt, :label)
         return hgf_model_loss(model)(model, hgf_model_forward(model, nt))
     else
         return hgf_model_forward(model, nt)
@@ -169,136 +169,4 @@ bias_init(d, factor=true) = bias_init_f() = _normal0(factor, d)
 weight_init(din, dout, factor=true) = weight_init_f() = _normal0(factor, dout, din)
 filter_init(kh, kw, in, out, factor=true) = filter_init_f() = _normal0(factor, out, in, kw, kh)
 
-_reverseperm(x) = reverse(ntuple(identity, Val(ndims(x))))
-_reversedims(x) = PermutedDimsArray(x, _reverseperm(x))
-reversedims(x) = _reversedims(x)
-reversedims(x::PermutedDimsArray{T,N,perm}) where {T,N,perm} = perm == _reversedims(x) ? parent(x) : _reversedims(x)
-collect32(x) = collect(Float32, x)
 
-getweight(init, ::Type, ::Symbol) = init()
-getweight(init, x, sym::Symbol) = getproperty(x, sym)
-
-getweight(init, ::Type{<:Array}, state_dict, name) = _getweight(collect32, init, state_dict, name)
-getweight(init, ::Type{<:Array}, state_dict::OrderedDict{String}, name) = getweight(init, state_dict, name)
-getweight(init, ::Type{<:TransformerLayers.Embed}, state_dict, name) = _getweight(collect32 ∘ adjoint, init, state_dict, name)
-getweight(init, ::Type{<:TransformerLayers.Embed}, state_dict::OrderedDict{String}, name) = _getweight(adjoint, init, state_dict, name)
-getweight(init, ::Type{<:Flux.CrossCor}, state_dict, name) = _getweight(collect32 ∘ reversedims, init, state_dict, name)
-getweight(init, ::Type{<:Flux.CrossCor}, state_dict::OrderedDict{String}, name) = _getweight(reversedims, init, state_dict, name)
-
-getweight(init, state_dict, name) = _getweight(identity, init, state_dict, name)
-function _getweight(process, init, state_dict, name)
-    if haskey(state_dict, name)
-        state = state_dict[name]
-        if Pickle.Torch.islazy(state)
-            lazystate = state
-            if Pickle.Torch.isloaded(lazystate)
-                weight = lazystate.data
-            else
-                state = lazystate()
-                weight = process(state)
-                lazystate.data = weight
-            end
-        else
-            weight = process(state)
-        end
-    else
-        @debug "$name not found, initialized."
-        weight = init()
-    end
-    return weight
-end
-
-get_state_dict(_, m::TransformerLayers.Embed, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.Embed, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = m.embeddings'
-    return state_dict
-end
-
-get_state_dict(_, m::TransformerLayers.EmbedDecoder, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.EmbedDecoder, state_dict, prefix)
-    if !isnothing(m.bias)
-        state_dict[joinname(prefix, "bias")] = m.bias
-    end
-    get_state_dict(m.embed, state_dict, prefix)
-    return state_dict
-end
-
-get_state_dict(_, m::TransformerLayers.FixedLenPositionEmbed, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.FixedLenPositionEmbed, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = m.embeddings'
-    return state_dict
-end
-
-get_state_dict(_, m::TransformerLayers.Dense, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.Dense, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = m.W
-    !isnothing(m.b) && (state_dict[joinname(prefix, "bias")] = m.b)
-    return state_dict
-end
-
-get_state_dict(_, m::Flux.CrossCor, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::Flux.CrossCor, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = reversedims(m.weight)
-    !isnothing(m.bias) && (state_dict[joinname(prefix, "bias")] = m.bias)
-    return state_dict
-end
-
-get_state_dict(_, m::TransformerLayers.LayerNorm, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.LayerNorm, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = m.α
-    state_dict[joinname(prefix, "bias")] = m.β
-    return state_dict
-end
-
-get_state_dict(_, m::TransformerLayers.RMSLayerNorm, state_dict, prefix) = get_state_dict(m, state_dict, prefix)
-function get_state_dict(m::TransformerLayers.RMSLayerNorm, state_dict, prefix)
-    state_dict[joinname(prefix, "weight")] = m.α
-    return state_dict
-end
-
-get_state_dict(p, m::TransformerLayers.RenameArgs, state_dict, prefix) = get_state_dict(p, m.layer, state_dict, prefix)
-get_state_dict(p, m::TransformerLayers.Branch, state_dict, prefix) = get_state_dict(p, m.layer, state_dict, prefix)
-get_state_dict(p, m::TransformerLayers.Parallel, state_dict, prefix) = get_state_dict(p, m.layer, state_dict, prefix)
-get_state_dict(p, m::TransformerLayers.DropoutLayer, state_dict, prefix) = get_state_dict(p, m.layer, state_dict, prefix)
-
-load_model(_type::Type, cfg) = load_model(_type, cfg, OrderedDict{String,Any}())
-load_model(_type::Type, cfg, state_dict) = load_model(_type, cfg, state_dict, "")
-
-get_state_dict(m) = get_state_dict(m, OrderedDict{String,Any}())
-get_state_dict(m, state_dict) = get_state_dict(m, state_dict, "")
-
-
-_load_embed(state_dict, prefix, vocab_size, dims, factor, pad_idx0=nothing) =
-    _load_embed(state_dict, prefix, weight_init(vocab_size, dims, factor), pad_idx0)
-function _load_embed(state_dict, prefix, w_init, pad_idx0=nothing)
-    embedding = getweight(TransformerLayers.Embed, state_dict, joinname(prefix, "weight")) do
-        weight = w_init()
-        if !isnothing(pad_idx0)
-            weight[:, pad_idx0+1] .= 0
-        end
-        return weight
-    end
-    return TransformerLayers.Embed(embedding)
-end
-
-function _load_layernorm(state_dict, prefix, dims, ln_ϵ=1e-5)
-    old_weight_name = joinname(prefix, "gamma")
-    old_bias_name = joinname(prefix, "beta")
-    weight_name = haskey(state_dict, old_weight_name) ? old_weight_name : joinname(prefix, "weight")
-    bias_name = haskey(state_dict, old_bias_name) ? old_bias_name : joinname(prefix, "bias")
-    ln_weight = getweight(one_init(dims), Array, state_dict, weight_name)
-    ln_bias = getweight(zero_init(dims), Array, state_dict, bias_name)
-    return TransformerLayers.LayerNorm(ln_weight, ln_bias, ln_ϵ)
-end
-
-_load_dense(state_dict, prefix, din, dout, factor, bias, act=nothing) =
-    _load_dense(state_dict, prefix, weight_init(din, dout, factor), bias ? zero_init(dout) : nothing, act)
-function _load_dense(state_dict, prefix, w_init, b_init, act=nothing)
-    weight = getweight(w_init, Array, state_dict, joinname(prefix, "weight"))
-    if isnothing(b_init)
-        bias = nothing
-    else
-        bias = getweight(b_init, Array, state_dict, joinname(prefix, "bias"))
-    end
-    return TransformerLayers.Dense(act, weight, bias)
-end

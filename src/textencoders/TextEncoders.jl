@@ -2,7 +2,7 @@ module TextEncoders
 
 
 using Functors
-using Tricks
+
 using PrimitiveOneHot
 using FuncPipelines
 using TextEncodeBase
@@ -187,7 +187,7 @@ function Base.getproperty(e::TrfTextEncoder, sym::Symbol)
     end
 end
 
-@inline _membercall(f, e, x) = !(f isa Pipelines) && static_hasmethod(f, Tuple{typeof(e),typeof(x)}) ? f(e, x) : f(x)
+@inline _membercall(f, e, x) = !(f isa Pipelines) && hasmethod(f, (typeof(e), typeof(x))) ? f(e, x) : f(x)
 
 TextEncodeBase.process(::Type{<:TrfTextEncoder}) = nestedcall(string_getvalue)
 TextEncodeBase.tokenize(e::TrfTextEncoder, x) = getfield(e, :tokenizer)(_membercall(getfield(e, :annotate), e, x))
